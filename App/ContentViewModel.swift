@@ -241,8 +241,10 @@ final class ContentViewModel: ObservableObject {
             frameSource = LiveCameraFrameSource(position: .front)
             
         case .videoFile:
-            // Try to load from bundle, or use a placeholder
-            if let source = VideoFileFrameSource(bundleResource: "test_video", withExtension: "mp4") {
+            // Try bundle resources first (testVid1.mov, then test_video.mp4, then demo.mov)
+            if let source = VideoFileFrameSource(bundleResource: "testVid1", withExtension: "mov") {
+                frameSource = source
+            } else if let source = VideoFileFrameSource(bundleResource: "test_video", withExtension: "mp4") {
                 frameSource = source
             } else if let source = VideoFileFrameSource(bundleResource: "demo", withExtension: "mov") {
                 frameSource = source
@@ -252,7 +254,7 @@ final class ContentViewModel: ObservableObject {
                 if VideoFileHelper.fileExists(at: docsURL) {
                     frameSource = VideoFileFrameSource(url: docsURL)
                 } else {
-                    print("[ContentViewModel] No video file found. Add test_video.mp4 to bundle or Documents.")
+                    print("[ContentViewModel] No video file found. Add testVid1.mov (or test_video.mp4 / demo.mov) to the Resources folder and ensure it's in the HackBrown target's Copy Bundle Resources.")
                     frameSource = nil
                 }
             }

@@ -74,7 +74,7 @@ final class VideoFileFrameSource: FrameSource {
         
         processingQueue.async { [weak self] in
             self?.setupReader()
-            self?.startFrameTimer()
+            // Frame timer is started in configureOutput() after the reader has successfully started
             DispatchQueue.main.async {
                 self?.isRunning = true
             }
@@ -138,11 +138,21 @@ final class VideoFileFrameSource: FrameSource {
         
         videoTrackOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: outputSettings)
 
-        if let output = videoTrackOutput, assetReader?.canAdd(output) == true {
-            assetReader?.add(output)
+        guard let output = videoTrackOutput,
+              let reader = assetReader,
+              reader.canAdd(output) else {
+            print("[VideoFileFrameSource] Cannot add track output to reader")
+            return
         }
-        
-        assetReader?.startReading()
+        reader.add(output)
+
+        do {
+            try reader.startReading()
+            // Start the frame timer only after the reader is ready
+            startFrameTimer()
+        } catch {
+            print("[VideoFileFrameSource] startReading failed: \(error)")
+        }
     }
     
     private func startFrameTimer() {
