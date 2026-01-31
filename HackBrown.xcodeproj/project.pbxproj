@@ -1,0 +1,398 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B10000000000000000000001 /* AlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* AlertManager.swift */; };
+		B10000000000000000000002 /* AlertPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* AlertPhrases.swift */; };
+		B10000000000000000000003 /* ElevenLabsTTS.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* ElevenLabsTTS.swift */; };
+		B10000000000000000000004 /* TTSFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* TTSFallback.swift */; };
+		B10000000000000000000005 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* ContentView.swift */; };
+		B10000000000000000000006 /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* ContentViewModel.swift */; };
+		B10000000000000000000007 /* SourceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* SourceMode.swift */; };
+		B10000000000000000000008 /* FrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* FrameSource.swift */; };
+		B10000000000000000000009 /* LiveCameraFrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* LiveCameraFrameSource.swift */; };
+		B1000000000000000000000A /* VideoFileFrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* VideoFileFrameSource.swift */; };
+		B1000000000000000000000B /* DriverPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000B /* DriverPipeline.swift */; };
+		B1000000000000000000000C /* PresageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000C /* PresageIntegration.swift */; };
+		B1000000000000000000000D /* VisionAttention.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000D /* VisionAttention.swift */; };
+		B1000000000000000000000E /* OverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* OverlayView.swift */; };
+		B1000000000000000000000F /* ObjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* ObjectDetector.swift */; };
+		B10000000000000000000010 /* RoadHeuristics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* RoadHeuristics.swift */; };
+		B10000000000000000000011 /* RoadPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* RoadPipeline.swift */; };
+		B10000000000000000000012 /* HackBrownApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* HackBrownApp.swift */; };
+		B10000000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F10000000000000000000001 /* AlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertManager.swift; sourceTree = "<group>"; };
+		F10000000000000000000002 /* AlertPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertPhrases.swift; sourceTree = "<group>"; };
+		F10000000000000000000003 /* ElevenLabsTTS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsTTS.swift; sourceTree = "<group>"; };
+		F10000000000000000000004 /* TTSFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSFallback.swift; sourceTree = "<group>"; };
+		F10000000000000000000005 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F10000000000000000000006 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
+		F10000000000000000000007 /* SourceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMode.swift; sourceTree = "<group>"; };
+		F10000000000000000000008 /* FrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameSource.swift; sourceTree = "<group>"; };
+		F10000000000000000000009 /* LiveCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraFrameSource.swift; sourceTree = "<group>"; };
+		F1000000000000000000000A /* VideoFileFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFileFrameSource.swift; sourceTree = "<group>"; };
+		F1000000000000000000000B /* DriverPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverPipeline.swift; sourceTree = "<group>"; };
+		F1000000000000000000000C /* PresageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresageIntegration.swift; sourceTree = "<group>"; };
+		F1000000000000000000000D /* VisionAttention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionAttention.swift; sourceTree = "<group>"; };
+		F1000000000000000000000E /* OverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayView.swift; sourceTree = "<group>"; };
+		F1000000000000000000000F /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetector.swift; sourceTree = "<group>"; };
+		F10000000000000000000010 /* RoadHeuristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadHeuristics.swift; sourceTree = "<group>"; };
+		F10000000000000000000011 /* RoadPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadPipeline.swift; sourceTree = "<group>"; };
+		F10000000000000000000012 /* HackBrownApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HackBrownApp.swift; sourceTree = "<group>"; };
+		F10000000000000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		T10000000000000000000001 /* HackBrown.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HackBrown.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		P10000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G10000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				G10000000000000000000002 /* HackBrown */,
+				G10000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		G10000000000000000000002 /* HackBrown */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000012 /* HackBrownApp.swift */,
+				GG100000000000000000001 /* Alerts */,
+				GG100000000000000000002 /* App */,
+				GG100000000000000000003 /* Camera */,
+				GG100000000000000000004 /* Driver */,
+				GG100000000000000000005 /* HUD */,
+				GG100000000000000000006 /* Road */,
+				GG100000000000000000007 /* Resources */,
+				F10000000000000000000015 /* Info.plist */,
+			);
+			path = .;
+			sourceTree = "<group>";
+		};
+		G10000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				T10000000000000000000001 /* HackBrown.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000001 /* Alerts */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000001 /* AlertManager.swift */,
+				F10000000000000000000002 /* AlertPhrases.swift */,
+				F10000000000000000000003 /* ElevenLabsTTS.swift */,
+				F10000000000000000000004 /* TTSFallback.swift */,
+			);
+			path = Alerts;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000002 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000005 /* ContentView.swift */,
+				F10000000000000000000006 /* ContentViewModel.swift */,
+				GG100000000000000000008 /* Settings */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000003 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000008 /* FrameSource.swift */,
+				F10000000000000000000009 /* LiveCameraFrameSource.swift */,
+				F1000000000000000000000A /* VideoFileFrameSource.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000004 /* Driver */ = {
+			isa = PBXGroup;
+			children = (
+				F1000000000000000000000B /* DriverPipeline.swift */,
+				F1000000000000000000000C /* PresageIntegration.swift */,
+				F1000000000000000000000D /* VisionAttention.swift */,
+			);
+			path = Driver;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000005 /* HUD */ = {
+			isa = PBXGroup;
+			children = (
+				F1000000000000000000000E /* OverlayView.swift */,
+			);
+			path = HUD;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000006 /* Road */ = {
+			isa = PBXGroup;
+			children = (
+				F1000000000000000000000F /* ObjectDetector.swift */,
+				F10000000000000000000010 /* RoadHeuristics.swift */,
+				F10000000000000000000011 /* RoadPipeline.swift */,
+			);
+			path = Road;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000007 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000014 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		GG100000000000000000008 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000007 /* SourceMode.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		T10000000000000000000002 /* HackBrown */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000001 /* Build configuration list for PBXNativeTarget "HackBrown" */;
+			buildPhases = (
+				P10000000000000000000001 /* Sources */,
+				P10000000000000000000002 /* Frameworks */,
+				P10000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HackBrown;
+			productName = HackBrown;
+			productReference = T10000000000000000000001 /* HackBrown.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		P10000000000000000000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = C10000000000000000000002 /* Build configuration list for PBXProject "HackBrown" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = G10000000000000000000001;
+			productRefGroup = G10000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				T10000000000000000000002 /* HackBrown */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		P10000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000013 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		P10000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000001 /* AlertManager.swift in Sources */,
+				B10000000000000000000002 /* AlertPhrases.swift in Sources */,
+				B10000000000000000000003 /* ElevenLabsTTS.swift in Sources */,
+				B10000000000000000000004 /* TTSFallback.swift in Sources */,
+				B10000000000000000000005 /* ContentView.swift in Sources */,
+				B10000000000000000000006 /* ContentViewModel.swift in Sources */,
+				B10000000000000000000007 /* SourceMode.swift in Sources */,
+				B10000000000000000000008 /* FrameSource.swift in Sources */,
+				B10000000000000000000009 /* LiveCameraFrameSource.swift in Sources */,
+				B1000000000000000000000A /* VideoFileFrameSource.swift in Sources */,
+				B1000000000000000000000B /* DriverPipeline.swift in Sources */,
+				B1000000000000000000000C /* PresageIntegration.swift in Sources */,
+				B1000000000000000000000D /* VisionAttention.swift in Sources */,
+				B1000000000000000000000E /* OverlayView.swift in Sources */,
+				B1000000000000000000000F /* ObjectDetector.swift in Sources */,
+				B10000000000000000000010 /* RoadHeuristics.swift in Sources */,
+				B10000000000000000000011 /* RoadPipeline.swift in Sources */,
+				B10000000000000000000012 /* HackBrownApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C10000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C10000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C10000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HackBrown;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.HackBrown;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C10000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HackBrown;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.HackBrown;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C10000000000000000000001 /* Build configuration list for PBXNativeTarget "HackBrown" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000005 /* Debug */,
+				C10000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000002 /* Build configuration list for PBXProject "HackBrown" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000003 /* Debug */,
+				C10000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = P10000000000000000000000 /* Project object */;
+}

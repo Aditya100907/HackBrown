@@ -1,0 +1,30 @@
+name: HackBrown
+options:
+  bundleIdPrefix: com.hackbrown
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "14.0"
+  generateEmptyDirectories: true
+
+targets:
+  HackBrown:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Alerts
+      - path: App
+      - path: Camera
+      - path: Driver
+      - path: HUD
+      - path: Road
+      - path: HackBrownApp.swift
+    resources:
+      - path: Resources/Assets.xcassets
+    info:
+      path: Info.plist
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1,2"

@@ -137,8 +137,7 @@ final class VideoFileFrameSource: FrameSource {
         ]
         
         videoTrackOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: outputSettings)
-        videoTrackOutput?.alwaysDiscardsLateVideoFrames = true
-        
+
         if let output = videoTrackOutput, assetReader?.canAdd(output) == true {
             assetReader?.add(output)
         }

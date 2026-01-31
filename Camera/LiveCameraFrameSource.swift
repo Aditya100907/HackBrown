@@ -130,8 +130,14 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
             
             // Set video orientation
             if let connection = videoOutput.connection(with: .video) {
-                if connection.isVideoRotationAngleSupported(90) {
-                    connection.videoRotationAngle = 90  // Portrait orientation
+                if #available(iOS 17.0, *) {
+                    if connection.isVideoRotationAngleSupported(90) {
+                        connection.videoRotationAngle = 90  // Portrait orientation
+                    }
+                } else {
+                    if connection.isVideoOrientationSupported {
+                        connection.videoOrientation = .portrait
+                    }
                 }
                 // Mirror front camera for natural selfie view
                 if cameraPosition == .front && connection.isVideoMirroringSupported {
