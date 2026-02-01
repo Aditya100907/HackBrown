@@ -105,7 +105,14 @@ final class ContentViewModel: ObservableObject {
     init() {
         // Check dual camera support on init
         isDualCameraSupported = DualCameraFrameSource.isSupported
+        
+        // Warm up the road pipeline to ensure YOLO model is fully loaded.
+        // This prevents the first-frame delay and ensures demo mode works immediately.
+        roadPipeline.warmUp()
+        
         setupBindings()
+        
+        print("[ContentViewModel] Initialized, road pipeline ready")
     }
     
     // MARK: - Setup
@@ -282,6 +289,16 @@ final class ContentViewModel: ObservableObject {
     func startDemoWithVideo(_ name: String, ext: String) {
         guard !isRunning else { return }
         
+        // Cancel existing subscriptions and re-setup bindings (same as startDualCamera/startSingleCamera)
+        // This ensures bindings are fresh and properly connected
+        cancellables.removeAll()
+        setupBindings()
+        
+        // Clear any stale state
+        currentFrameImage = nil
+        roadOutput = nil
+        driverOutput = nil
+        
         appMode = .demo
         sourceMode = .videoFile
         selectedVideoFileName = "\(name).\(ext)"
@@ -299,19 +316,19 @@ final class ContentViewModel: ObservableObject {
         resetFPSCounter()
         alertManager.resetCooldowns()
         
-        // Subscribe to frames
+        // Subscribe to frames for UI preview
         subscribeToFrames()
         
-        // Start road pipeline with YOLO
+        // Start road pipeline with YOLO - this creates its own subscription to the video source
         roadPipeline.start(with: videoSource)
         
-        // Start video playback
+        // Start video playback AFTER pipeline is subscribed
         videoSource.start()
         
         // Announce system ready
         alertManager.triggerAlert(.systemReady)
         
-        print("[ContentViewModel] Started demo with video: \(name).\(ext)")
+        print("[ContentViewModel] Started demo with video: \(name).\(ext), YOLO pipeline active")
     }
     
     /// Start with single camera (original behavior)

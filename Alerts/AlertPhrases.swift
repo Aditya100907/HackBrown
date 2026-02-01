@@ -182,6 +182,19 @@ func alertTypeForRoadHazard(_ event: RoadHazardEvent) -> AlertType {
         } else {
             return .vehicleClosing
         }
+
+    case .futurePath:
+        // Future path prediction: use a proactive closing warning
+        switch objectLabel {
+        case .person:
+            return .pedestrianAhead
+        case .bicycle:
+            return .cyclistAhead
+        case .car, .truck, .bus, .motorcycle:
+            return .vehicleClosing
+        default:
+            return .obstacleAhead
+        }
         
     case .vehicleAhead:
         // Identify specific vehicle type

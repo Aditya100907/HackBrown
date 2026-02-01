@@ -101,6 +101,8 @@ final class AlertManager: ObservableObject {
                 customPhrase = obj.label == .bicycle ? 
                     "Cyclist ahead. Give space." :
                     "Pedestrian ahead. Slow down."
+            case .futurePath:
+                customPhrase = "\(objName) entering your path."
             }
         } else {
             customPhrase = nil
