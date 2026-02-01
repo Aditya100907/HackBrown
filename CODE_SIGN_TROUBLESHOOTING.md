@@ -1,5 +1,14 @@
 # CodeSign Failed – Troubleshooting
 
+## Why it builds for Simulator but not for your iPhone
+
+- **Simulator**: Xcode does not fully code-sign the app and embedded frameworks the same way. Frameworks like `PresagePreprocessing.framework` (from SmartSpectra) are often copied as-is or signed in a minimal way, so no keychain access is needed.
+- **Device (your iPhone)**: Xcode must **re-sign every embedded framework** with your development certificate so the device trusts them. That step runs `/usr/bin/codesign` and needs **keychain access** to the private key for “Apple Development: kothari.aditya09@gmail.com”. If the keychain blocks that access, you get **errSecInternalComponent** and the build fails only for device.
+
+So the same keychain/identity issue only shows up when building for device.
+
+---
+
 ## errSecInternalComponent when signing PresagePreprocessing.framework
 
 If you see:
@@ -8,7 +17,7 @@ HackBrown.app/Frameworks/PresagePreprocessing.framework: errSecInternalComponent
 Command CodeSign failed with a nonzero exit code
 ```
 
-That means **codesign couldn’t use the signing identity** (keychain/security), usually when signing the SmartSpectra embedded framework. Try these in order:
+That means **codesign couldn’t use the signing identity** (keychain/security) when signing the SmartSpectra embedded framework **for device**. Try these in order:
 
 1. **Unlock the keychain**  
    Open **Keychain Access** → select **login** → ensure it’s unlocked (no lock icon). If it’s locked, unlock it and try building again.
