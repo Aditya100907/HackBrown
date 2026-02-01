@@ -232,7 +232,7 @@ final class AlertManager: ObservableObject {
             try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
         }
         
-        // Speak the alert (use custom phrase if provided)
+        // Speak the alert (use custom phrase if provided; pass priority for urgency-based voice)
         await ttsManager.speak(request.type, customPhrase: request.phrase)
         
         // Update state

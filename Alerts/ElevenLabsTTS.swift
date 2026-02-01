@@ -16,14 +16,14 @@ struct ElevenLabsConfig {
     /// API key (set this before using, or load from Info.plist)
     static var apiKey: String = ""
     
-    /// Voice ID — Arnold (crisp, authoritative, distinctly ElevenLabs; avoids iOS TTS soundalike)
-    static var voiceId: String = "VR6AewLTigWG4xSOukaG"  // Arnold
+    /// Voice ID — George (warm, captivating British male)
+    static var voiceId: String = "JBFqnCBsd6RMkjVDRZzb"
     
     /// Model ID
-    static var modelId: String = "eleven_monolingual_v1"
+    static var modelId: String = "eleven_multilingual_v2"
     
     /// API endpoint
-    static let apiEndpoint = URL(string: "https://api.elevenlabs.io/v1/text-to-speech")!
+    static let apiEndpoint = "https://api.elevenlabs.io/v1/text-to-speech"
 
     /// Whether API key is configured
     static var isConfigured: Bool {
@@ -31,9 +31,9 @@ struct ElevenLabsConfig {
     }
     
     /// Load API key from Info.plist (key: ELEVENLABS_API_KEY)
-    /// Call this at app launch to configure ElevenLabs
     static func loadApiKeyFromBundle() -> String {
-        Bundle.main.object(forInfoDictionaryKey: "ELEVENLABS_API_KEY") as? String ?? ""
+        let raw = Bundle.main.object(forInfoDictionaryKey: "ELEVENLABS_API_KEY") as? String ?? ""
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -41,16 +41,9 @@ struct ElevenLabsConfig {
 
 /// Protocol for TTS providers
 protocol TTSProvider {
-    /// Whether the provider is ready
     var isReady: Bool { get }
-    
-    /// Speak a phrase (may play from cache or generate)
     func speak(_ phrase: String, alertType: AlertType) async -> Bool
-    
-    /// Pre-cache all alert phrases
     func preCacheAllPhrases() async
-    
-    /// Check if a phrase is cached
     func isCached(_ alertType: AlertType) -> Bool
 }
 
@@ -58,8 +51,6 @@ protocol TTSProvider {
 
 /// ElevenLabs TTS implementation with local caching
 final class ElevenLabsTTS: TTSProvider {
-    
-    // MARK: - Properties
     
     private var audioPlayer: AVAudioPlayer?
     private let cacheDirectory: URL
@@ -69,32 +60,23 @@ final class ElevenLabsTTS: TTSProvider {
         ElevenLabsConfig.isConfigured
     }
     
-    // MARK: - Initialization
-    
     init() {
-        // Cache dir includes voiceId so changing voice invalidates old cached files
         let cachePath = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         cacheDirectory = cachePath.appendingPathComponent("ElevenLabsAudio", isDirectory: true)
             .appendingPathComponent(ElevenLabsConfig.voiceId, isDirectory: true)
         
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        
-        // Load list of cached files
         loadCachedFilesList()
-        
-        // Configure audio session
         configureAudioSession()
     }
     
-    // MARK: - TTSProvider Methods
-    
     func speak(_ phrase: String, alertType: AlertType) async -> Bool {
-        // Try to play from cache first
-        if let cachedURL = getCachedURL(for: alertType), FileManager.default.fileExists(atPath: cachedURL.path) {
-            return await playAudio(from: cachedURL)
+        // Try cache first
+        let cacheURL = cacheDirectory.appendingPathComponent("\(alertType.rawValue).mp3")
+        if FileManager.default.fileExists(atPath: cacheURL.path) {
+            return await playAudio(from: cacheURL)
         }
         
-        // Generate and cache if not available
         guard isReady else {
             print("[ElevenLabsTTS] Not configured, cannot generate audio")
             return false
@@ -105,17 +87,15 @@ final class ElevenLabsTTS: TTSProvider {
             return false
         }
         
-        // Cache for future use
-        let cacheURL = getCachedURL(for: alertType)!
+        // Cache it
         do {
             try audioData.write(to: cacheURL)
             cachedFiles.insert(alertType.rawValue)
             print("[ElevenLabsTTS] Cached audio for: \(alertType.rawValue)")
         } catch {
-            print("[ElevenLabsTTS] Failed to cache audio: \(error)")
+            print("[ElevenLabsTTS] Failed to cache: \(error)")
         }
         
-        // Play the generated audio
         return await playAudio(data: audioData)
     }
     
@@ -126,15 +106,12 @@ final class ElevenLabsTTS: TTSProvider {
         }
         
         print("[ElevenLabsTTS] Pre-caching all alert phrases...")
-        
         for alertType in AlertType.allCases {
             if !isCached(alertType) {
                 _ = await speak(alertType.phrase, alertType: alertType)
-                // Small delay to avoid rate limiting
-                try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5s
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
-        
         print("[ElevenLabsTTS] Pre-caching complete")
     }
     
@@ -142,7 +119,7 @@ final class ElevenLabsTTS: TTSProvider {
         cachedFiles.contains(alertType.rawValue)
     }
     
-    // MARK: - Private Methods
+    // MARK: - Private
     
     private func configureAudioSession() {
         do {
@@ -155,25 +132,20 @@ final class ElevenLabsTTS: TTSProvider {
     }
     
     private func loadCachedFilesList() {
-        guard let files = try? FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else {
+        guard FileManager.default.fileExists(atPath: cacheDirectory.path),
+              let files = try? FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else {
             return
         }
-        
-        for file in files {
-            let name = file.deletingPathExtension().lastPathComponent
-            cachedFiles.insert(name)
+        for file in files where file.pathExtension == "mp3" {
+            cachedFiles.insert(file.deletingPathExtension().lastPathComponent)
         }
-        
         print("[ElevenLabsTTS] Found \(cachedFiles.count) cached audio files")
     }
     
-    private func getCachedURL(for alertType: AlertType) -> URL? {
-        cacheDirectory.appendingPathComponent("\(alertType.rawValue).mp3")
-    }
-    
     private func generateAudio(for text: String) async -> Data? {
-        let urlString = "\(ElevenLabsConfig.apiEndpoint)/\(ElevenLabsConfig.voiceId)"
-        guard let url = URL(string: urlString) else { return nil }
+        guard let url = URL(string: "\(ElevenLabsConfig.apiEndpoint)/\(ElevenLabsConfig.voiceId)") else {
+            return nil
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -184,21 +156,26 @@ final class ElevenLabsTTS: TTSProvider {
             "text": text,
             "model_id": ElevenLabsConfig.modelId,
             "voice_settings": [
-                "stability": 0.75,
-                "similarity_boost": 0.75,
-                "style": 0.5,
-                "use_speaker_boost": true
+                "stability": 0.5,
+                "similarity_boost": 0.75
             ]
         ]
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                print("[ElevenLabsTTS] API error: \(response)")
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("[ElevenLabsTTS] Invalid response")
+                return nil
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let errorBody = String(data: data, encoding: .utf8) {
+                    print("[ElevenLabsTTS] API error \(httpResponse.statusCode): \(errorBody)")
+                } else {
+                    print("[ElevenLabsTTS] API error \(httpResponse.statusCode)")
+                }
                 return nil
             }
             

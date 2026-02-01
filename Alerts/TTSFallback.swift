@@ -164,9 +164,7 @@ final class TTSManager {
     func speak(_ alertType: AlertType, customPhrase: String? = nil) async {
         let phrase = customPhrase ?? alertType.phrase
         
-        // Try ElevenLabs first if configured and preferred
         if preferElevenLabs && elevenLabs.isReady {
-            // Check if cached (instant playback) or try to generate
             let success = await elevenLabs.speak(phrase, alertType: alertType)
             if success {
                 return
@@ -174,7 +172,6 @@ final class TTSManager {
             print("[TTSManager] ElevenLabs failed, falling back to iOS TTS")
         }
         
-        // Fallback to iOS TTS
         _ = await fallback.speak(phrase, alertType: alertType)
     }
     
