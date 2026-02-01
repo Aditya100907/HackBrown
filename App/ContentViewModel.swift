@@ -251,7 +251,6 @@ final class ContentViewModel: ObservableObject {
         
         // Always use dual camera if supported (default behavior for Start button)
         if isDualCameraSupported {
-            appMode = .road  // Reset to camera mode
             startDualCamera()
         } else {
             // Fallback to single back camera with road pipeline

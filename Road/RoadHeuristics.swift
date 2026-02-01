@@ -29,6 +29,9 @@ struct RoadHazardEvent {
     /// Object that triggered the hazard
     let triggeringObject: DetectedObject?
     
+    /// Raw hazard score (0–1) used to compute severity
+    let hazardScore: Float
+    
     /// Specific label of the detected object (for TTS)
     var objectLabel: String {
         triggeringObject?.label.rawValue ?? "obstacle"
@@ -69,6 +72,12 @@ final class RoadHeuristics {
     
     /// Large object threshold (10% of frame)
     private let largeAreaThreshold: CGFloat = 0.10
+
+    /// Assumed system latency (inference + TTS + reaction) in seconds
+    private let latencyCompensationSec: TimeInterval = 0.7
+
+    /// Growth rate considered "fast approach" (area/sec)
+    private let criticalGrowthThreshold: CGFloat = 0.04
 
     /// Prediction horizon (seconds) for momentum-based forecasting
     private let predictionHorizon: TimeInterval = 1.2
@@ -257,25 +266,72 @@ final class RoadHeuristics {
         lastAlertTimes.removeAll()
     }
     
+    // MARK: - Hazard Score (0–1)
+    
+    /// Computes a continuous hazard score from area, path centrality, growth, and object type.
+    /// Higher = more urgent. Used for severity + latency compensation.
+    private func computeHazardScore(
+        detection: DetectedObject,
+        growthRate: CGFloat,
+        isVulnerableRoadUser: Bool
+    ) -> Float {
+        // 1. Area factor (0–0.4): larger objects = higher risk
+        let areaNorm = min(1, detection.area / largeAreaThreshold)
+        let areaScore = Float(areaNorm) * 0.4
+        
+        // 2. Path centrality (0–0.25): closer to center = more in our path
+        let centerX: CGFloat = 0.5
+        let centerY: CGFloat = 0.5
+        let dx = detection.center.x - centerX
+        let dy = detection.center.y - centerY
+        let distFromCenter = sqrt(dx * dx + dy * dy)
+        let centralityScore = Float(max(0, 1 - distFromCenter * 2)) * 0.25
+        
+        // 3. Growth/approach factor (0–0.35): faster approach = higher risk
+        let growthNorm = min(1, max(0, growthRate / CGFloat(criticalGrowthThreshold)))
+        let growthScore = Float(growthNorm) * 0.35
+        
+        // 4. Object-type weight: pedestrians/cyclists get a boost (vulnerable road users)
+        let typeBoost: Float = isVulnerableRoadUser ? 0.15 : 0
+        
+        // 5. Detection confidence: low confidence slightly reduces score
+        let confFactor = 0.7 + 0.3 * detection.confidence
+        
+        let raw = (areaScore + centralityScore + growthScore + typeBoost) * confFactor
+        return min(1, max(0, raw))
+    }
+    
+    /// Project area forward by latency to compensate for system delay
+    private func projectedArea(current: CGFloat, growthRate: CGFloat) -> CGFloat {
+        current + growthRate * CGFloat(latencyCompensationSec)
+    }
+    
+    /// Map hazard score (0–1) to severity, with conservative bias (round up)
+    private func scoreToSeverity(_ score: Float, isClosingFast: Bool) -> HazardSeverity {
+        if score >= 0.75 || isClosingFast && score >= 0.5 {
+            return .critical
+        }
+        if score >= 0.5 {
+            return .high
+        }
+        if score >= 0.3 {
+            return .medium
+        }
+        return .low
+    }
+    
     // MARK: - Hazard Checks
     
     private func checkPedestrian(_ detection: DetectedObject, timestamp: Date) -> RoadHazardEvent? {
         let alertKey = "ped_\(detection.label.rawValue)"
         
-        // Check cooldown
         if let lastTime = lastAlertTimes[alertKey], timestamp.timeIntervalSince(lastTime) < alertCooldown {
             return nil
         }
         
-        // Any pedestrian/cyclist in path is concerning
-        let severity: HazardSeverity
-        if detection.area > largeAreaThreshold {
-            severity = .critical
-        } else if detection.area > closeAreaThreshold {
-            severity = .high
-        } else {
-            severity = .medium
-        }
+        // Pedestrians: area is main factor, no growth tracking needed (they move unpredictably)
+        let score = computeHazardScore(detection: detection, growthRate: 0, isVulnerableRoadUser: true)
+        let severity = scoreToSeverity(score, isClosingFast: false)
         
         lastAlertTimes[alertKey] = timestamp
         
@@ -285,50 +341,37 @@ final class RoadHeuristics {
             severity: severity,
             timestamp: timestamp,
             description: "\(name) ahead",
-            triggeringObject: detection
+            triggeringObject: detection,
+            hazardScore: score
         )
     }
     
     private func checkVehicle(_ detection: DetectedObject, growthRate: CGFloat, timestamp: Date) -> RoadHazardEvent? {
         let alertKey = "veh_\(detection.label.rawValue)"
         
-        // Check cooldown
         if let lastTime = lastAlertTimes[alertKey], timestamp.timeIntervalSince(lastTime) < alertCooldown {
             return nil
         }
         
-        // Check if this vehicle is approaching (area growing)
-        let isApproaching = growthRate > 0.005  // Any positive growth
-        
-        // Determine if we should alert
-        // Alert if: large object OR approaching object
-        let isLarge = detection.area > closeAreaThreshold
+        let isApproaching = growthRate > 0.005
         let isClosingFast = growthRate > rapidGrowthThreshold
+        let isLarge = detection.area > closeAreaThreshold
         
-        // Only alert for significant objects
         guard isLarge || (isApproaching && detection.area > minimumTrackingArea * 3) else {
             return nil
         }
         
-        // Determine severity and type
-        let severity: HazardSeverity
-        let hazardType: RoadHazardType
+        var score = computeHazardScore(detection: detection, growthRate: growthRate, isVulnerableRoadUser: false)
         
-        if isClosingFast && detection.area > closeAreaThreshold {
-            severity = .critical
-            hazardType = .closingFast
-        } else if isClosingFast {
-            severity = .high
-            hazardType = .closingFast
-        } else if detection.area > largeAreaThreshold {
-            severity = .high
-            hazardType = .vehicleAhead
-        } else if isLarge {
-            severity = .medium
-            hazardType = .vehicleAhead
-        } else {
-            return nil  // Not significant enough
+        // Latency compensation: boost score when approaching (object will be closer by the time we alert)
+        if isApproaching {
+            let projArea = projectedArea(current: detection.area, growthRate: growthRate)
+            let areaGrowthFactor = min(1.5, projArea / max(0.001, detection.area))
+            score = min(1, score * Float(areaGrowthFactor) + 0.1)
         }
+        
+        let severity = scoreToSeverity(score, isClosingFast: isClosingFast)
+        let hazardType: RoadHazardType = isClosingFast ? .closingFast : .vehicleAhead
         
         lastAlertTimes[alertKey] = timestamp
         
@@ -340,7 +383,8 @@ final class RoadHeuristics {
             severity: severity,
             timestamp: timestamp,
             description: desc,
-            triggeringObject: detection
+            triggeringObject: detection,
+            hazardScore: score
         )
     }
     
@@ -395,12 +439,14 @@ final class RoadHeuristics {
         lastAlertTimes[alertKey] = timestamp
 
         let desc = "\(detection.label.rawValue.capitalized) entering path"
+        let score = Float(min(1, predictedArea / CGFloat(largeAreaThreshold))) * 0.5 + (severity == .high ? 0.4 : 0.2)
         return RoadHazardEvent(
             type: .futurePath,
             severity: severity,
             timestamp: timestamp,
             description: desc,
-            triggeringObject: detection
+            triggeringObject: detection,
+            hazardScore: score
         )
     }
     
@@ -470,7 +516,6 @@ final class RoadHeuristics {
             return (detection.area - last.area) / dt
         }
 
-        guard fallbackDelta > 0 else { return 0 }
-        return (detection.area) / CGFloat(fallbackDelta)
+        return 0  // No prior sample to compute growth
     }
 }

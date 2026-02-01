@@ -3,21 +3,21 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>ThirdEye</string>
+    <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
-    <string>com.hackbrown.ThirdEye</string>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleDisplayName</key>
-    <string>ThirdEye</string>
+    <string>SafeRide</string>
     <key>CFBundleName</key>
-    <string>ThirdEye</string>
+    <string>$(PRODUCT_NAME)</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>NSCameraUsageDescription</key>
-    <string>ThirdEye needs camera access for road hazard detection and driver monitoring.</string>
+    <string>SafeRide needs camera access for road hazard detection and driver monitoring.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>ThirdEye may use the microphone for voice alerts.</string>
+    <string>SafeRide may use the microphone for voice alerts.</string>
     <key>ELEVENLABS_API_KEY</key>
     <string></string>
     <key>UILaunchScreen</key>

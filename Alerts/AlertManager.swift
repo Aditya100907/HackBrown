@@ -102,7 +102,11 @@ final class AlertManager: ObservableObject {
                     "Cyclist ahead. Give space." :
                     "Pedestrian ahead. Slow down."
             case .futurePath:
+<<<<<<< HEAD
                 customPhrase = "\(objName) in path ahead."
+=======
+                customPhrase = "\(objName) entering your path."
+>>>>>>> d1591db9c20247b49a2212e220473cd211426dd6
             }
         } else {
             customPhrase = nil
@@ -228,14 +232,14 @@ final class AlertManager: ObservableObject {
         
         // Play warning sound FIRST for road hazard alerts
         if request.type.isRoadHazard {
-            // Warning sound disabled for now
+            WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
             
             // Brief pause after warning sound before speech
             try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
         }
         
         // Speak the alert (use custom phrase if provided; pass priority for urgency-based voice)
-        await ttsManager.speak(request.type, customPhrase: request.phrase)
+        await ttsManager.speak(request.type, customPhrase: request.phrase, effectivePriority: request.priority)
         
         // Update state
         currentAlert = nil
