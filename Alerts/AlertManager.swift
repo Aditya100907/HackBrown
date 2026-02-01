@@ -102,11 +102,7 @@ final class AlertManager: ObservableObject {
                     "Cyclist ahead. Give space." :
                     "Pedestrian ahead. Slow down."
             case .futurePath:
-<<<<<<< HEAD
-                customPhrase = "\(objName) in path ahead."
-=======
                 customPhrase = "\(objName) entering your path."
->>>>>>> d1591db9c20247b49a2212e220473cd211426dd6
             }
         } else {
             customPhrase = nil
