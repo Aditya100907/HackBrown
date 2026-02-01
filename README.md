@@ -1,6 +1,6 @@
-# HackBrown
+# SafeRide (HackBrown)
 
-Driving assistant prototype with road hazard detection and driver monitoring.
+Smartphone-based driving safety assistant. Two modes: **Road** (hazard detection) and **Driver** (attention monitoring). Optional **Demo** mode uses a video file when camera isn't available (e.g. simulator). See `PROJECT_SPEC.MD` for full specification.
 
 ## How to run
 

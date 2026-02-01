@@ -364,7 +364,7 @@ struct HUDOverlay: View {
                 timestamp: Date()
             ),
             driverOutput: nil,
-            currentAlert: .vehicleApproaching,
+            currentAlert: .obstacleAhead,
             isAlertActive: true,
             frameSize: CGSize(width: 390, height: 844)
         )

@@ -26,7 +26,10 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
     private let captureSession = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "com.hackbrown.camera.session")
     private let videoOutputQueue = DispatchQueue(label: "com.hackbrown.camera.output")
-    private let cameraPosition: CameraPosition
+    private var cameraPosition: CameraPosition
+    
+    /// Stored reference to clear delegate before teardown (avoids weak ref crash)
+    private weak var videoOutput: AVCaptureVideoDataOutput?
     
     // MARK: - Configuration
     
@@ -44,10 +47,6 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
         setupSession()
     }
     
-    deinit {
-        stop()
-    }
-    
     // MARK: - FrameSource Methods
     
     func start() {
@@ -62,11 +61,37 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
     
     func stop() {
         sessionQueue.async { [weak self] in
-            guard let self = self, self.captureSession.isRunning else { return }
-            self.captureSession.stopRunning()
+            guard let self = self else { return }
+            self.videoOutput?.setSampleBufferDelegate(nil, queue: nil)
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+            }
             DispatchQueue.main.async {
                 self.isRunning = false
             }
+        }
+    }
+    
+    /// Reconfigure for a different camera position (avoids deallocation when switching Road/Driver).
+    /// Call stop() before reconfiguring. Call start() after.
+    func reconfigure(for position: CameraPosition) {
+        guard position != cameraPosition else { return }
+        cameraPosition = position
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            // Clear delegate first to prevent callbacks during teardown
+            self.videoOutput?.setSampleBufferDelegate(nil, queue: nil)
+            self.videoOutput = nil
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+            }
+            // Reconfigure session for new camera position
+            self.captureSession.beginConfiguration()
+            self.captureSession.inputs.forEach { self.captureSession.removeInput($0) }
+            self.captureSession.outputs.forEach { self.captureSession.removeOutput($0) }
+            self.configureSession()
+            self.captureSession.commitConfiguration()
         }
     }
     
@@ -118,18 +143,19 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
         }
         
         // Add video output
-        let videoOutput = AVCaptureVideoDataOutput()
-        videoOutput.alwaysDiscardsLateVideoFrames = true  // Drop stale frames for latency
-        videoOutput.videoSettings = [
+        let output = AVCaptureVideoDataOutput()
+        output.alwaysDiscardsLateVideoFrames = true  // Drop stale frames for latency
+        output.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
-        videoOutput.setSampleBufferDelegate(self, queue: videoOutputQueue)
+        output.setSampleBufferDelegate(self, queue: videoOutputQueue)
+        self.videoOutput = output
         
-        if captureSession.canAddOutput(videoOutput) {
-            captureSession.addOutput(videoOutput)
+        if captureSession.canAddOutput(output) {
+            captureSession.addOutput(output)
             
             // Set video orientation
-            if let connection = videoOutput.connection(with: .video) {
+            if let connection = output.connection(with: .video) {
                 if #available(iOS 17.0, *) {
                     if connection.isVideoRotationAngleSupported(90) {
                         connection.videoRotationAngle = 90  // Portrait orientation

@@ -10,13 +10,14 @@
 import Foundation
 import CoreGraphics
 
-// MARK: - Road Hazard Events
+// MARK: - Road Hazard Events (per PROJECT_SPEC)
 
 /// Types of road hazards we can detect
+/// OBSTACLE_AHEAD: vehicle or person in forward scene
+/// CLOSING_FAST: rapid growth of leading vehicle's bounding box
 enum RoadHazardType: String {
-    case rapidApproach = "rapid_approach"      // Car ahead growing rapidly
-    case pedestrianInPath = "pedestrian_path"  // Pedestrian in forward path
-    case cyclistInPath = "cyclist_path"        // Cyclist in forward path
+    case obstacleAhead = "obstacle_ahead"  // Vehicle or person detected in forward scene
+    case closingFast = "closing_fast"      // Vehicle ahead rapidly growing (braking ahead)
 }
 
 /// A detected road hazard event
@@ -95,16 +96,16 @@ final class RoadHeuristics {
             // Skip small objects
             guard detection.area >= minimumTrackingArea else { continue }
             
-            // Check for pedestrian/cyclist in path
-            if detection.label.isVulnerableRoadUser {
-                if let event = checkVulnerableRoadUserInPath(detection, timestamp: timestamp) {
+            // OBSTACLE_AHEAD: vehicle or person in forward scene (per spec)
+            if detection.label.isVehicle || detection.label.isVulnerableRoadUser {
+                if let event = checkObstacleAhead(detection, timestamp: timestamp) {
                     events.append(event)
                 }
             }
             
-            // Check for rapid approach (vehicles)
+            // CLOSING_FAST: rapid growth of leading vehicle (per spec)
             if detection.label.isVehicle && timeDelta > 0 && timeDelta < maxTrackingInterval {
-                if let event = checkRapidApproach(detection, timeDelta: timeDelta, timestamp: timestamp) {
+                if let event = checkClosingFast(detection, timeDelta: timeDelta, timestamp: timestamp) {
                     events.append(event)
                 }
             }
@@ -125,8 +126,8 @@ final class RoadHeuristics {
     
     // MARK: - Hazard Checks
     
-    /// Check if a vulnerable road user (pedestrian/cyclist) is in the forward path
-    private func checkVulnerableRoadUserInPath(_ detection: DetectedObject, timestamp: Date) -> RoadHazardEvent? {
+    /// OBSTACLE_AHEAD: vehicle or person detected in forward scene (per spec)
+    private func checkObstacleAhead(_ detection: DetectedObject, timestamp: Date) -> RoadHazardEvent? {
         let center = detection.center
         
         // Check if center is in forward path region
@@ -148,11 +149,10 @@ final class RoadHeuristics {
             severity = .medium
         }
         
-        let hazardType: RoadHazardType = detection.label == .person ? .pedestrianInPath : .cyclistInPath
-        let description = "\(detection.label.rawValue.capitalized) detected in forward path"
+        let description = "\(detection.label.rawValue.capitalized) in forward scene"
         
         return RoadHazardEvent(
-            type: hazardType,
+            type: .obstacleAhead,
             severity: severity,
             timestamp: timestamp,
             description: description,
@@ -160,8 +160,8 @@ final class RoadHeuristics {
         )
     }
     
-    /// Check if a vehicle is rapidly approaching (growing in frame)
-    private func checkRapidApproach(_ detection: DetectedObject, timeDelta: TimeInterval, timestamp: Date) -> RoadHazardEvent? {
+    /// CLOSING_FAST: rapid growth of leading vehicle's bounding box (per spec)
+    private func checkClosingFast(_ detection: DetectedObject, timeDelta: TimeInterval, timestamp: Date) -> RoadHazardEvent? {
         // Find matching tracked object from previous frame
         guard let tracked = findMatchingTrackedObject(for: detection) else {
             return nil
@@ -187,10 +187,10 @@ final class RoadHeuristics {
         }
         
         return RoadHazardEvent(
-            type: .rapidApproach,
+            type: .closingFast,
             severity: severity,
             timestamp: timestamp,
-            description: "Vehicle ahead approaching rapidly",
+            description: "Vehicle ahead closing fast",
             triggeringObject: detection
         )
     }

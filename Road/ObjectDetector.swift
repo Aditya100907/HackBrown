@@ -141,14 +141,23 @@ final class ObjectDetector {
     }
     
     private func findBundledModel() -> URL? {
-        // Look for common YOLO model names in bundle
-        let modelNames = ["YOLOv3", "YOLOv3Tiny", "YOLOv5", "YOLOv8", "yolo", "ObjectDetector"]
+        // Look for common YOLO model names in bundle (per PROJECT_SPEC: YOLO-style CoreML)
+        let modelNames = ["YOLOv8", "YOLOv5", "YOLOv3", "YOLOv3Tiny", "yolov8s", "yolo", "ObjectDetector"]
         
+        // Try .mlmodelc (compiled from .mlmodel at build time)
         for name in modelNames {
             if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
                 return url
             }
         }
+        
+        // Try .mlpackage (YOLOv8-CoreML format)
+        for name in modelNames {
+            if let url = Bundle.main.url(forResource: name, withExtension: "mlpackage") {
+                return url
+            }
+        }
+        
         return nil
     }
     

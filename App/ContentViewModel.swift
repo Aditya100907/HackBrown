@@ -12,25 +12,22 @@ import CoreVideo
 
 // MARK: - App Mode
 
-/// Operating mode of the app
+/// Operating mode of the app (per PROJECT_SPEC: two mutually exclusive modes + optional demo)
 enum AppMode: String, CaseIterable, Identifiable {
-    case roadMonitoring = "Road"       // Rear camera - road hazards
-    case driverMonitoring = "Driver"   // Front camera - attention
-    case dualMode = "Dual"             // Both (requires dual camera setup)
-    case demo = "Demo"                 // Video file playback
+    case road = "Road"       // Rear camera - road hazards (OBSTACLE_AHEAD, CLOSING_FAST)
+    case driver = "Driver"   // Front camera - driver monitoring (DRIVER_DISTRACTED, DRIVER_DROWSY)
+    case demo = "Demo"       // Optional: video file for testing (no camera required)
     
     var id: String { rawValue }
     
     var description: String {
         switch self {
-        case .roadMonitoring:
-            return "Rear camera monitoring road hazards"
-        case .driverMonitoring:
-            return "Front camera monitoring driver attention"
-        case .dualMode:
-            return "Both cameras active (dual pipeline)"
+        case .road:
+            return "Rear camera — hazard detection"
+        case .driver:
+            return "Front camera — attention monitoring"
         case .demo:
-            return "Demo mode with video file"
+            return "Video file — testing only"
         }
     }
 }
@@ -43,7 +40,7 @@ final class ContentViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var sourceMode: SourceMode = .liveRear
-    @Published var appMode: AppMode = .roadMonitoring
+    @Published var appMode: AppMode = .road
     @Published var isRunning: Bool = false
     @Published var currentFrameImage: UIImage?
     @Published var fps: Double = 0.0
@@ -59,6 +56,10 @@ final class ContentViewModel: ObservableObject {
     // MARK: - Pipelines
     
     private var frameSource: FrameSource?
+    
+    /// Single live camera source — reused for Road/Driver to avoid deallocation crash when switching
+    private lazy var liveCameraSource: LiveCameraFrameSource = LiveCameraFrameSource(position: .back)
+    
     private let roadPipeline = RoadPipeline()
     private let driverPipeline = DriverPipeline()
     let alertManager = AlertManager()
@@ -130,12 +131,10 @@ final class ContentViewModel: ObservableObject {
         
         // Update source mode to match app mode
         switch mode {
-        case .roadMonitoring:
+        case .road:
             sourceMode = .liveRear
-        case .driverMonitoring:
+        case .driver:
             sourceMode = .liveFront
-        case .dualMode:
-            sourceMode = .liveRear  // Primary is rear for road
         case .demo:
             sourceMode = .videoFile
         }
@@ -186,20 +185,12 @@ final class ContentViewModel: ObservableObject {
         // Subscribe to frames for preview
         subscribeToFrames()
         
-        // Start appropriate pipeline(s)
+        // Start appropriate pipeline(s) — one at a time per spec
         switch appMode {
-        case .roadMonitoring, .demo:
+        case .road, .demo:
             roadPipeline.start(with: source)
-            
-        case .driverMonitoring:
+        case .driver:
             driverPipeline.start(with: source)
-            
-        case .dualMode:
-            // In dual mode, road uses rear, driver uses front
-            // For simplicity, we just run road pipeline with current source
-            // A full implementation would use two separate sources
-            roadPipeline.start(with: source)
-            // TODO: Create second source for driver pipeline
         }
         
         // Start frame source
@@ -212,10 +203,14 @@ final class ContentViewModel: ObservableObject {
     func stop() {
         guard isRunning else { return }
         
-        frameSource?.stop()
+        // Stop pipelines first (cancel frame subscriptions)
         roadPipeline.stop()
         driverPipeline.stop()
         alertManager.stopAndClear()
+        
+        // Stop frame source (live camera is reused, never deallocated — avoids crash)
+        frameSource?.stop()
+        frameSource = nil
         
         isRunning = false
         currentFrameImage = nil
@@ -232,13 +227,16 @@ final class ContentViewModel: ObservableObject {
         setupBindings()  // Re-setup pipeline bindings
         currentFrameImage = nil
         
-        // Create appropriate source
         switch mode {
         case .liveRear:
-            frameSource = LiveCameraFrameSource(position: .back)
+            // Reuse single live camera — reconfigure if switching from front
+            liveCameraSource.reconfigure(for: .back)
+            frameSource = liveCameraSource
             
         case .liveFront:
-            frameSource = LiveCameraFrameSource(position: .front)
+            // Reuse single live camera — reconfigure if switching from back
+            liveCameraSource.reconfigure(for: .front)
+            frameSource = liveCameraSource
             
         case .videoFile:
             // Try bundle resources first (testVid1.mov, then test_video.mp4, then demo.mov)

@@ -10,44 +10,42 @@ import Foundation
 
 // MARK: - Alert Type
 
-/// All alert types with their phrases and priorities
+/// All alert types with their phrases and priorities (per PROJECT_SPEC)
 /// Priority: road hazards > distraction > drowsiness
+/// Spec phrases: "Eyes up.", "Watch the road.", "You seem drowsy.", "Obstacle ahead.", "Closing fast."
 enum AlertType: String, CaseIterable {
-    // Road hazards (highest priority)
-    case vehicleApproaching = "vehicle_approaching"
-    case pedestrianAhead = "pedestrian_ahead"
-    case cyclistAhead = "cyclist_ahead"
+    // Road hazards (highest priority) — OBSTACLE_AHEAD, CLOSING_FAST
+    case obstacleAhead = "obstacle_ahead"
+    case closingFast = "closing_fast"
     
-    // Distraction (medium priority)
-    case eyesOnRoad = "eyes_on_road"
-    case payAttention = "pay_attention"
+    // Distraction (medium priority) — DRIVER_DISTRACTED
+    case eyesUp = "eyes_up"
+    case watchRoad = "watch_road"
     
-    // Drowsiness (lower priority, but still important)
-    case stayAwake = "stay_awake"
+    // Drowsiness (lower priority) — DRIVER_DROWSY
+    case drowsy = "drowsy"
     case takeBreak = "take_break"
     
     // System
     case systemReady = "system_ready"
     
-    /// The phrase to speak for this alert
+    /// The phrase to speak for this alert (per spec: ~5-8 short phrases)
     var phrase: String {
         switch self {
-        case .vehicleApproaching:
-            return "Vehicle approaching"
-        case .pedestrianAhead:
-            return "Pedestrian ahead"
-        case .cyclistAhead:
-            return "Cyclist ahead"
-        case .eyesOnRoad:
-            return "Eyes on the road"
-        case .payAttention:
-            return "Pay attention"
-        case .stayAwake:
-            return "Stay awake"
+        case .obstacleAhead:
+            return "Obstacle ahead."
+        case .closingFast:
+            return "Closing fast."
+        case .eyesUp:
+            return "Eyes up."
+        case .watchRoad:
+            return "Watch the road."
+        case .drowsy:
+            return "You seem drowsy."
         case .takeBreak:
-            return "Consider taking a break"
+            return "Consider taking a break."
         case .systemReady:
-            return "System ready"
+            return "System ready."
         }
     }
     
@@ -55,21 +53,19 @@ enum AlertType: String, CaseIterable {
     var priority: Int {
         switch self {
         // Road hazards: highest priority (100-199)
-        case .vehicleApproaching:
-            return 150
-        case .pedestrianAhead:
-            return 160  // Pedestrians are most vulnerable
-        case .cyclistAhead:
+        case .obstacleAhead:
+            return 160
+        case .closingFast:
             return 155
             
         // Distraction: medium priority (50-99)
-        case .eyesOnRoad:
+        case .eyesUp:
             return 70
-        case .payAttention:
-            return 60
+        case .watchRoad:
+            return 65
             
         // Drowsiness: important but lower priority (30-49)
-        case .stayAwake:
+        case .drowsy:
             return 45
         case .takeBreak:
             return 40
@@ -84,15 +80,15 @@ enum AlertType: String, CaseIterable {
     var defaultCooldown: TimeInterval {
         switch self {
         // Road hazards: shorter cooldown (can repeat more often)
-        case .vehicleApproaching, .pedestrianAhead, .cyclistAhead:
+        case .obstacleAhead, .closingFast:
             return 3.0
             
         // Distraction: medium cooldown
-        case .eyesOnRoad, .payAttention:
+        case .eyesUp, .watchRoad:
             return 5.0
             
         // Drowsiness: longer cooldown (don't nag too much)
-        case .stayAwake, .takeBreak:
+        case .drowsy, .takeBreak:
             return 10.0
             
         // System: no repeat needed
@@ -104,7 +100,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a road hazard alert
     var isRoadHazard: Bool {
         switch self {
-        case .vehicleApproaching, .pedestrianAhead, .cyclistAhead:
+        case .obstacleAhead, .closingFast:
             return true
         default:
             return false
@@ -114,7 +110,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a distraction alert
     var isDistraction: Bool {
         switch self {
-        case .eyesOnRoad, .payAttention:
+        case .eyesUp, .watchRoad:
             return true
         default:
             return false
@@ -124,7 +120,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a drowsiness alert
     var isDrowsiness: Bool {
         switch self {
-        case .stayAwake, .takeBreak:
+        case .drowsy, .takeBreak:
             return true
         default:
             return false
@@ -134,27 +130,25 @@ enum AlertType: String, CaseIterable {
 
 // MARK: - Alert Mapping Helpers
 
-/// Maps road hazard events to alert types
+/// Maps road hazard events to alert types (spec: OBSTACLE_AHEAD, CLOSING_FAST)
 func alertTypeForRoadHazard(_ hazardType: RoadHazardType) -> AlertType {
     switch hazardType {
-    case .rapidApproach:
-        return .vehicleApproaching
-    case .pedestrianInPath:
-        return .pedestrianAhead
-    case .cyclistInPath:
-        return .cyclistAhead
+    case .obstacleAhead:
+        return .obstacleAhead
+    case .closingFast:
+        return .closingFast
     }
 }
 
-/// Maps driver events to alert types
+/// Maps driver events to alert types (spec: DRIVER_DISTRACTED, DRIVER_DROWSY)
 func alertTypeForDriverEvent(_ eventType: DriverEventType) -> AlertType {
     switch eventType {
     case .distraction:
-        return .eyesOnRoad
+        return .eyesUp
     case .drowsiness:
-        return .stayAwake
+        return .drowsy
     case .lowAttention:
-        return .payAttention
+        return .watchRoad
     case .highFatigue:
         return .takeBreak
     }

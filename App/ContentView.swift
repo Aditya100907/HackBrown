@@ -170,12 +170,10 @@ struct AppModeButton: View {
     
     private var iconName: String {
         switch mode {
-        case .roadMonitoring:
+        case .road:
             return "car.fill"
-        case .driverMonitoring:
+        case .driver:
             return "person.fill"
-        case .dualMode:
-            return "rectangle.split.2x1.fill"
         case .demo:
             return "film.fill"
         }
@@ -271,12 +269,10 @@ struct FramePreviewView: View {
     
     private var placeholderIcon: String {
         switch viewModel.appMode {
-        case .roadMonitoring:
+        case .road:
             return "car.fill"
-        case .driverMonitoring:
+        case .driver:
             return "person.fill"
-        case .dualMode:
-            return "rectangle.split.2x1.fill"
         case .demo:
             return "film.fill"
         }
