@@ -32,14 +32,13 @@ final class AlertManager: ObservableObject {
     /// Maximum alerts to keep in history
     private let maxHistoryCount = 10
     
-    /// Global minimum time between any alerts
-    private let globalCooldown: TimeInterval = 1.0
+    /// Only same-type (duplicate) alerts are masked; different phrases (e.g. break vs watch out) can play without delay.
+    /// No global cooldown — different alert types are not blocked.
     
     // MARK: - Private Properties
     
     private let ttsManager: TTSManager
     private var lastAlertTimes: [AlertType: Date] = [:]
-    private var lastGlobalAlertTime: Date?
     private var alertQueue: [AlertRequest] = []
     private var isProcessingQueue = false
     
@@ -144,7 +143,7 @@ final class AlertManager: ObservableObject {
     // MARK: - Queue Management
     
     private func enqueueAlert(_ request: AlertRequest) {
-        // Check per-alert cooldown
+        // Check per-alert cooldown — don't even queue if we just played this type
         if let lastTime = lastAlertTimes[request.type] {
             let elapsed = Date().timeIntervalSince(lastTime)
             if elapsed < request.cooldown {
@@ -153,13 +152,9 @@ final class AlertManager: ObservableObject {
             }
         }
         
-        // Check global cooldown
-        if let lastGlobal = lastGlobalAlertTime {
-            let elapsed = Date().timeIntervalSince(lastGlobal)
-            if elapsed < globalCooldown {
-                // Queue for later instead of dropping
-                print("[AlertManager] Queueing \(request.type.rawValue): global cooldown active")
-            }
+        // Mask duplicate: only one request per alert type in the queue (same phrase = blocked; different = allowed)
+        if alertQueue.contains(where: { $0.type == request.type }) {
+            return
         }
         
         // Add to queue (will be sorted by priority)
@@ -179,16 +174,6 @@ final class AlertManager: ObservableObject {
         isProcessingQueue = true
         
         while !alertQueue.isEmpty {
-            // Check global cooldown
-            if let lastGlobal = lastGlobalAlertTime {
-                let elapsed = Date().timeIntervalSince(lastGlobal)
-                if elapsed < globalCooldown {
-                    // Wait for cooldown
-                    let waitTime = globalCooldown - elapsed
-                    try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
-                }
-            }
-            
             // Get highest priority alert
             guard let request = alertQueue.first else { break }
             alertQueue.removeFirst()
@@ -213,9 +198,8 @@ final class AlertManager: ObservableObject {
         currentAlert = request.type
         isPlaying = true
         
-        // Record timing
+        // Record timing (only per-type; no global — so different phrases can play back-to-back)
         lastAlertTimes[request.type] = Date()
-        lastGlobalAlertTime = Date()
         
         // Add to history
         let entry = AlertHistoryEntry(type: request.type, timestamp: Date())
@@ -255,7 +239,6 @@ final class AlertManager: ObservableObject {
     /// Reset cooldowns (e.g., when restarting)
     func resetCooldowns() {
         lastAlertTimes.removeAll()
-        lastGlobalAlertTime = nil
     }
 }
 

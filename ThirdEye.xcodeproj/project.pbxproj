@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		74599B882F2EBA7C007395F6 /* yolov8n.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = 74599B882F2EBA7C007395F7 /* yolov8n.mlpackage */; };
 		74599B892F2EBA7B007395F5 /* testVid1.mov in Resources */ = {isa = PBXBuildFile; fileRef = 74599B882F2EBA7B007395F5 /* testVid1.mov */; };
+		74599B8A2F2EBA7B007395F6 /* testVid2.mov in Resources */ = {isa = PBXBuildFile; fileRef = 74599B8B2F2EBA7B007395F6 /* testVid2.mov */; };
+		74599B8C2F2EBA7B007395F6 /* testVid5.mov in Resources */ = {isa = PBXBuildFile; fileRef = 74599B8D2F2EBA7B007395F6 /* testVid5.mov */; };
 		B10000000000000000000001 /* AlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* AlertManager.swift */; };
 		B10000000000000000000002 /* AlertPhrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* AlertPhrases.swift */; };
 		B10000000000000000000003 /* ElevenLabsTTS.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* ElevenLabsTTS.swift */; };
@@ -35,6 +37,8 @@
 
 /* Begin PBXFileReference section */
 		74599B882F2EBA7B007395F5 /* testVid1.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid1.mov; sourceTree = "<group>"; };
+		74599B8B2F2EBA7B007395F6 /* testVid2.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid2.mov; sourceTree = "<group>"; };
+		74599B8D2F2EBA7B007395F6 /* testVid5.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid5.mov; sourceTree = "<group>"; };
 		74599B882F2EBA7C007395F7 /* yolov8n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolov8n.mlpackage; sourceTree = "<group>"; };
 		F10000000000000000000001 /* AlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertManager.swift; sourceTree = "<group>"; };
 		F10000000000000000000002 /* AlertPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertPhrases.swift; sourceTree = "<group>"; };
@@ -172,6 +176,8 @@
 			children = (
 				F10000000000000000000014 /* Assets.xcassets */,
 				74599B882F2EBA7B007395F5 /* testVid1.mov */,
+				74599B8B2F2EBA7B007395F6 /* testVid2.mov */,
+				74599B8D2F2EBA7B007395F6 /* testVid5.mov */,
 				74599B882F2EBA7C007395F7 /* yolov8n.mlpackage */,
 			);
 			path = Resources;
@@ -240,6 +246,8 @@
 			files = (
 				B10000000000000000000013 /* Assets.xcassets in Resources */,
 				74599B892F2EBA7B007395F5 /* testVid1.mov in Resources */,
+				74599B8A2F2EBA7B007395F6 /* testVid2.mov in Resources */,
+				74599B8C2F2EBA7B007395F6 /* testVid5.mov in Resources */,
 				74599B882F2EBA7C007395F6 /* yolov8n.mlpackage in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

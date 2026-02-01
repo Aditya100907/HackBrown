@@ -59,36 +59,41 @@ class VideoManager {
     
     // MARK: - Public Methods
     
-    /// Scan the app bundle for all available video files
+    /// Scan the app bundle for all available video files (root and Resources folder)
     /// - Returns: Array of DemoVideo objects, sorted alphabetically by display name
     static func scanBundleForVideos() -> [DemoVideo] {
+        var seen = Set<String>()
         var videos: [DemoVideo] = []
+        let subdirs = [nil as String?, "Resources"]
         
-        for ext in supportedExtensions {
-            if let urls = Bundle.main.urls(forResourcesWithExtension: ext, subdirectory: nil) {
-                for url in urls {
-                    let fileName = url.lastPathComponent
-                    let name = url.deletingPathExtension().lastPathComponent
-                    
-                    // Skip hidden files and system files
-                    guard !name.hasPrefix(".") && !name.hasPrefix("__") else {
-                        continue
+        for subdir in subdirs {
+            for ext in supportedExtensions {
+                if let urls = Bundle.main.urls(forResourcesWithExtension: ext, subdirectory: subdir) {
+                    for url in urls {
+                        let fileName = url.lastPathComponent
+                        let name = url.deletingPathExtension().lastPathComponent
+                        
+                        // Skip hidden files and system files
+                        guard !name.hasPrefix(".") && !name.hasPrefix("__") else {
+                            continue
+                        }
+                        // Dedupe by filename (same file might appear in root and Resources)
+                        guard seen.insert(fileName).inserted else { continue }
+                        
+                        let video = DemoVideo(
+                            id: fileName,
+                            name: name,
+                            fileName: fileName,
+                            fileExtension: ext,
+                            url: url
+                        )
+                        videos.append(video)
                     }
-                    
-                    let video = DemoVideo(
-                        id: fileName,
-                        name: name,
-                        fileName: fileName,
-                        fileExtension: ext,
-                        url: url
-                    )
-                    
-                    videos.append(video)
                 }
             }
         }
         
-        // Sort by display name for consistent UI ordering
+        // Sort by display name for consistent UI ordering (testVid1, testVid2, testVid5)
         return videos.sorted { $0.displayName < $1.displayName }
     }
     

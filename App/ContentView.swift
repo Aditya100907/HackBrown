@@ -87,12 +87,9 @@ struct ControlPanel: View {
                 
                 Spacer()
                 
-                // Two simplified buttons: Start and Demo
+                // Start and Demo buttons
                 HStack(spacing: 12) {
-                    // Start/Stop button
-                    Button(action: {
-                        viewModel.toggleRunning()
-                    }) {
+                    Button(action: { viewModel.toggleRunning() }) {
                         HStack(spacing: 6) {
                             Image(systemName: viewModel.isRunning ? "stop.fill" : "play.fill")
                             Text(viewModel.isRunning ? "Stop" : "Start")
@@ -105,10 +102,7 @@ struct ControlPanel: View {
                         .cornerRadius(8)
                     }
                     
-                    // Demo button (only enabled when not running)
-                    Button(action: {
-                        viewModel.startDemo()
-                    }) {
+                    Button(action: { viewModel.startDemo() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "film.fill")
                             Text("Demo")
@@ -124,6 +118,33 @@ struct ControlPanel: View {
                 }
             }
             .padding(.horizontal)
+            
+            // Demo only: Prev | video name | Next (contiguous loop)
+            if viewModel.isRunning, viewModel.appMode == .demo, !viewModel.demoVideos.isEmpty {
+                HStack(spacing: 16) {
+                    Button("Prev") { viewModel.cycleToPreviousDemoVideo() }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                    
+                    Text(currentDemoVideoLabel)
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    
+                    Button("Next") { viewModel.cycleToNextDemoVideo() }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                }
+                .padding(.horizontal)
+            }
             
             // Alert history (last few alerts)
             if !viewModel.alertManager.recentAlerts.isEmpty {
@@ -156,6 +177,12 @@ struct ControlPanel: View {
             return "Running - Demo"
         }
         return "Stopped"
+    }
+    
+    private var currentDemoVideoLabel: String {
+        guard viewModel.currentDemoVideoIndex < viewModel.demoVideos.count else { return "" }
+        let video = viewModel.demoVideos[viewModel.currentDemoVideoIndex]
+        return "\(video.displayName) (\(viewModel.currentDemoVideoIndex + 1)/\(viewModel.demoVideos.count))"
     }
 }
 

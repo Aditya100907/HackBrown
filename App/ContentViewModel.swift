@@ -78,6 +78,12 @@ final class ContentViewModel: ObservableObject {
     /// Currently selected video filename (with extension)
     @Published var selectedVideoFileName: String?
     
+    /// List of demo videos (populated when demo starts, for cycling)
+    @Published var demoVideos: [DemoVideo] = []
+    
+    /// Index into demoVideos for the currently playing demo video
+    @Published var currentDemoVideoIndex: Int = 0
+    
     // MARK: - Pipelines
     
     private var frameSource: FrameSource?
@@ -331,7 +337,55 @@ final class ContentViewModel: ObservableObject {
         // Announce system ready
         alertManager.triggerAlert(.systemReady)
         
+        // Store demo list and index for cycling
+        let allVideos = VideoManager.scanBundleForVideos()
+        demoVideos = allVideos
+        currentDemoVideoIndex = allVideos.firstIndex { $0.name == name && $0.fileExtension == ext } ?? 0
+        
         print("[ContentViewModel] Started demo with video: \(name).\(ext), YOLO pipeline active")
+    }
+    
+    /// Cycle to the next demo video (wraps to first after last)
+    func cycleToNextDemoVideo() {
+        guard isRunning, appMode == .demo, !demoVideos.isEmpty else { return }
+        switchToDemoVideo(at: (currentDemoVideoIndex + 1) % demoVideos.count)
+    }
+    
+    /// Cycle to the previous demo video (wraps to last after first)
+    func cycleToPreviousDemoVideo() {
+        guard isRunning, appMode == .demo, !demoVideos.isEmpty else { return }
+        let prev = (currentDemoVideoIndex - 1 + demoVideos.count) % demoVideos.count
+        switchToDemoVideo(at: prev)
+    }
+    
+    /// Switch demo to the video at the given index (used by Prev/Next)
+    private func switchToDemoVideo(at index: Int) {
+        guard index >= 0, index < demoVideos.count else { return }
+        
+        frameSource?.stop()
+        frameSource = nil
+        cancellables.removeAll()
+        setupBindings()
+        
+        currentDemoVideoIndex = index
+        let video = demoVideos[index]
+        selectedVideoFileName = video.fileName
+        
+        guard let videoSource = VideoManager.loadVideo(named: video.name, ext: video.fileExtension) else {
+            print("[ContentViewModel] Failed to load video: \(video.fileName)")
+            return
+        }
+        
+        frameSource = videoSource
+        currentFrameImage = nil
+        roadOutput = nil
+        resetFPSCounter()
+        
+        roadPipeline.start(with: videoSource)
+        subscribeToFrames()
+        videoSource.start()
+        
+        print("[ContentViewModel] Demo video: \(video.fileName)")
     }
     
     /// Start with single camera (original behavior)
@@ -439,6 +493,8 @@ final class ContentViewModel: ObservableObject {
         roadOutput = nil
         driverOutput = nil
         fps = 0.0
+        demoVideos = []
+        currentDemoVideoIndex = 0
     }
     
     // MARK: - Private Methods
