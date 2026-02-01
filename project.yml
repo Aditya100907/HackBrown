@@ -1,4 +1,4 @@
-name: HackBrown
+name: ThirdEye
 options:
   bundleIdPrefix: com.hackbrown
   deploymentTarget:
@@ -7,7 +7,7 @@ options:
   generateEmptyDirectories: true
 
 targets:
-  HackBrown:
+  ThirdEye:
     type: application
     platform: iOS
     deploymentTarget: "15.0"
@@ -18,7 +18,7 @@ targets:
       - path: Driver
       - path: HUD
       - path: Road
-      - path: HackBrownApp.swift
+      - path: ThirdEyeApp.swift
     resources:
       - path: Resources/Assets.xcassets
     info:

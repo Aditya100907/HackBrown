@@ -75,6 +75,15 @@ final class RoadPipeline: ObservableObject {
     init(detector: ObjectDetector? = nil) {
         self.detector = detector ?? ObjectDetector()
         self.heuristics = RoadHeuristics()
+        
+        // Log model readiness
+        print("[RoadPipeline] Initialized, detector ready: \(self.detector.isReady)")
+    }
+    
+    /// Warm up the detector by ensuring the model is loaded and ready
+    /// Call this on app launch to avoid first-frame delay
+    func warmUp() {
+        print("[RoadPipeline] Warming up detector, ready: \(detector.isReady)")
     }
     
     // MARK: - Pipeline Control

@@ -1,11 +1,11 @@
-# SafeRide — Smartphone-Based Driving Safety Assistant
+# ThirdEye — Smartphone-Based Driving Safety Assistant
 ### 24-Hour Hackathon Prototype (Single-App, Mode-Based Demo)
 
 ---
 
 ## 0. Project Intent (Read This First)
 
-SafeRide is a **hackathon-scale prototype**, not a production system.
+ThirdEye is a **hackathon-scale prototype**, not a production system.
 
 The goal is to demonstrate — clearly, reliably, and interactively — that a **single smartphone** can provide meaningful “new car” safety assistance (driver monitoring + road hazard alerts) to **very old cars with no ADAS hardware**.
 
@@ -41,7 +41,7 @@ Both modes:
 
 ## 2. High-Level System Overview
 
-SafeRide consists of five conceptual subsystems:
+ThirdEye consists of five conceptual subsystems:
 
 1. **Camera Input Layer**
 2. **Perception / Analysis Layer**

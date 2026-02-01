@@ -1,4 +1,4 @@
-# SafeRide (HackBrown)
+# ThirdEye
 
 Smartphone-based driving safety assistant. Two modes: **Road** (hazard detection) and **Driver** (attention monitoring). Optional **Demo** mode uses a video file when camera isn't available (e.g. simulator). See `PROJECT_SPEC.MD` for full specification.
 
@@ -8,7 +8,7 @@ Smartphone-based driving safety assistant. Two modes: **Road** (hazard detection
 
 1. **Open the project**
    ```bash
-   open HackBrown/HackBrown.xcodeproj
+   open ThirdEye.xcodeproj
    ```
 
 2. **Select a run destination**  
@@ -19,12 +19,11 @@ Smartphone-based driving safety assistant. Two modes: **Road** (hazard detection
 
 ### Option 2: Command line
 
-From the repo root (`hack@brown/`):
+From the repo root:
 
 1. **Build for simulator** (replace with a simulator name from `xcrun simctl list devices` if needed):
    ```bash
-   cd HackBrown
-   xcodebuild -project HackBrown.xcodeproj -scheme HackBrown \
+   xcodebuild -project ThirdEye.xcodeproj -scheme ThirdEye \
      -destination 'platform=iOS Simulator,name=iPhone 16' \
      -configuration Debug build
    ```
@@ -32,13 +31,13 @@ From the repo root (`hack@brown/`):
 2. **Run on simulator** (after building):
    ```bash
    xcrun simctl boot "iPhone 16" 2>/dev/null || true
-   xcrun simctl install booted build/Debug-iphonesimulator/HackBrown.app
-   xcrun simctl launch booted com.hackbrown.HackBrown
+   xcrun simctl install booted build/Debug-iphonesimulator/ThirdEye.app
+   xcrun simctl launch booted com.hackbrown.ThirdEye
    ```
 
-Or from the **HackBrown** directory:
+Or from the **ThirdEye** directory:
 
-- `open HackBrown.xcodeproj` — open in Xcode  
+- `open ThirdEye.xcodeproj` — open in Xcode  
 - Then use **⌘R** in Xcode to run.
 
 ## Requirements
