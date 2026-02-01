@@ -73,6 +73,10 @@ final class RoadPipeline: ObservableObject {
     private var isCurrentlyProcessing = false
     private let processingLock = NSLock()
     
+    /// Frame throttling for reduced CPU usage
+    private var frameCounter: Int = 0
+    private let processEveryNthFrame: Int = 3  // Process every 3rd frame (~10fps effective)
+    
     // MARK: - Initialization
     
     init(detector: ObjectDetector? = nil) {
@@ -116,6 +120,13 @@ final class RoadPipeline: ObservableObject {
     // MARK: - Frame Processing
     
     private func processFrame(_ frame: Frame) {
+        // Frame throttling at pipeline level
+        frameCounter += 1
+        guard frameCounter >= processEveryNthFrame else {
+            return  // Skip this frame
+        }
+        frameCounter = 0
+        
         // Drop frame if still processing previous one (prioritize latency)
         processingLock.lock()
         guard !isCurrentlyProcessing else {
@@ -130,7 +141,7 @@ final class RoadPipeline: ObservableObject {
             
             let timestamp = Date()
             
-            // Run object detection
+            // Run object detection (already has internal throttling too)
             let detections = self.detector.detect(in: frame.pixelBuffer)
             
             // Run heuristics analysis
