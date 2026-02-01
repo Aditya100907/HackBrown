@@ -57,21 +57,39 @@ final class RoadHeuristics {
     
     // MARK: - Configuration
     
-    /// Forward path region (where objects ahead matter)
+    /// Forward path region (where objects ahead matter) — used for "caution" / vehicle ahead
     private let forwardPathXRange: ClosedRange<CGFloat> = 0.1...0.9
     private let forwardPathYRange: ClosedRange<CGFloat> = 0.1...0.95
+
+    /// Narrow center strip = "in our lane". Only objects here get high-risk / closing-fast.
+    private let centerLaneXRange: ClosedRange<CGFloat> = 0.35...0.65
     
     /// Minimum area growth rate (per second) for rapid approach
     private let rapidGrowthThreshold: CGFloat = 0.02
     
+    /// Growth rate below this = object receding (passing or moving away). No closing/urgent alerts.
+    private let recedingGrowthThreshold: CGFloat = -0.005
+    
+    /// Velocity.y below this (normalized/sec) = object moving away from us in frame. Suppress high-risk alerts.
+    private let recedingVelocityYThreshold: CGFloat = -0.02
+    
     /// Minimum object area to consider (very small = 0.5% of frame)
     private let minimumTrackingArea: CGFloat = 0.003
     
-    /// Area threshold for "close" objects (5% of frame)
-    private let closeAreaThreshold: CGFloat = 0.05
+    /// Area threshold for "close" objects — raised so only genuinely close vehicles trigger (8% of frame)
+    private let closeAreaThreshold: CGFloat = 0.08
+    
+    /// Minimum area to emit "vehicle ahead" at all (avoid distant cars)
+    private let vehicleAheadMinArea: CGFloat = 0.06
     
     /// Large object threshold (10% of frame)
     private let largeAreaThreshold: CGFloat = 0.10
+
+    /// Consecutive frames object must be in center lane before we emit any vehicle alert
+    private let requiredCenterLaneFrames: Int = 2
+
+    /// Consecutive frame pairs with positive growth required for "closing fast"
+    private let requiredClosingGrowthFrames: Int = 2
 
     /// Assumed system latency (inference + TTS + reaction) in seconds
     private let latencyCompensationSec: TimeInterval = 0.7
@@ -240,9 +258,16 @@ final class RoadHeuristics {
                     events.append(event)
                 }
             }
-            // Check for vehicle
+            // Check for vehicle: only when in our lane (center strip); ignore adjacent/commuting traffic
             else if detection.label.isVehicle {
-                if let event = checkVehicle(detection, growthRate: growthRate, timestamp: timestamp) {
+                guard isInCenterLane(detection.center) else {
+                    updateTrack(with: detection, timestamp: timestamp, matchedIndex: matchedIndex)
+                    continue
+                }
+                let adjacentLane = isConsistentlyAdjacentLane(track: matchedTrack)
+                let sustainedInLane = consecutiveFramesInCenterLane(track: matchedTrack, currentCenter: detection.center) >= requiredCenterLaneFrames
+                let consecutiveClosing = hasConsecutivePositiveGrowth(track: matchedTrack, currentArea: detection.area, currentTime: timestamp)
+                if sustainedInLane, let event = checkVehicle(detection, growthRate: growthRate, velocity: velocity, adjacentLane: adjacentLane, consecutiveClosingGrowth: consecutiveClosing, timestamp: timestamp) {
                     events.append(event)
                 }
             }
@@ -346,15 +371,27 @@ final class RoadHeuristics {
         )
     }
     
-    private func checkVehicle(_ detection: DetectedObject, growthRate: CGFloat, timestamp: Date) -> RoadHazardEvent? {
+    private func checkVehicle(_ detection: DetectedObject, growthRate: CGFloat, velocity: CGPoint?, adjacentLane: Bool, consecutiveClosingGrowth: Bool, timestamp: Date) -> RoadHazardEvent? {
         let alertKey = "veh_\(detection.label.rawValue)"
         
         if let lastTime = lastAlertTimes[alertKey], timestamp.timeIntervalSince(lastTime) < alertCooldown {
             return nil
         }
         
+        // Receding = passing or moving away. Don't treat as closing or high-risk.
+        let isRecedingByGrowth = growthRate < recedingGrowthThreshold
+        let isRecedingByVelocity = (velocity?.y ?? 0) < recedingVelocityYThreshold
+        if isRecedingByGrowth || isRecedingByVelocity {
+            return nil
+        }
+        
+        // Only alert when vehicle is actually close enough to matter (not every car in vicinity)
+        guard detection.area >= vehicleAheadMinArea else { return nil }
+        
         let isApproaching = growthRate > 0.005
-        let isClosingFast = growthRate > rapidGrowthThreshold
+        let rawClosingFast = growthRate > rapidGrowthThreshold
+        // "Closing fast" only with sustained positive growth (2+ frames), and not adjacent-lane traffic
+        let isClosingFast = rawClosingFast && consecutiveClosingGrowth && !adjacentLane
         let isLarge = detection.area > closeAreaThreshold
         
         guard isLarge || (isApproaching && detection.area > minimumTrackingArea * 3) else {
@@ -363,14 +400,17 @@ final class RoadHeuristics {
         
         var score = computeHazardScore(detection: detection, growthRate: growthRate, isVulnerableRoadUser: false)
         
-        // Latency compensation: boost score when approaching (object will be closer by the time we alert)
+        // Latency compensation only when approaching
         if isApproaching {
             let projArea = projectedArea(current: detection.area, growthRate: growthRate)
             let areaGrowthFactor = min(1.5, projArea / max(0.001, detection.area))
             score = min(1, score * Float(areaGrowthFactor) + 0.1)
         }
         
-        let severity = scoreToSeverity(score, isClosingFast: isClosingFast)
+        var severity = scoreToSeverity(score, isClosingFast: isClosingFast)
+        if adjacentLane {
+            severity = min(severity, .low)
+        }
         let hazardType: RoadHazardType = isClosingFast ? .closingFast : .vehicleAhead
         
         lastAlertTimes[alertKey] = timestamp
@@ -416,11 +456,11 @@ final class RoadHeuristics {
         )
 
         let predictedArea = detection.area + growthRate * CGFloat(predictionHorizon)
-        let entersPath = isInForwardPath(predictedCenter)
+        let entersCenterLane = isInCenterLane(predictedCenter)
         let gettingCloser = predictedArea > detection.area * 1.02 || displacement.y > 0.01
 
-        // Skip if already inside path and will remain small
-        guard entersPath && gettingCloser else { return nil }
+        // Only alert when object will enter *our* lane (center), not just the wide path
+        guard entersCenterLane && gettingCloser else { return nil }
         if alreadyInPath && detection.area > closeAreaThreshold {
             return nil
         }
@@ -459,7 +499,49 @@ final class RoadHeuristics {
     private func isInForwardPath(_ center: CGPoint) -> Bool {
         return forwardPathXRange.contains(center.x) && forwardPathYRange.contains(center.y)
     }
-    
+
+    /// True if object is in the narrow center strip ("in our lane"). Used for high-risk / closing-fast only.
+    private func isInCenterLane(_ center: CGPoint) -> Bool {
+        return centerLaneXRange.contains(center.x) && forwardPathYRange.contains(center.y)
+    }
+
+    /// Mean lateral position (0–1) over the track's history. Nil if no track or no samples.
+    private func meanLateralPosition(track: MotionTrack?) -> CGFloat? {
+        guard let track = track, !track.samples.isEmpty else { return nil }
+        let sum = track.samples.reduce(CGFloat(0)) { $0 + $1.center.x }
+        return sum / CGFloat(track.samples.count)
+    }
+
+    /// True if the object has been consistently left or right of center (adjacent lane) over recent frames.
+    private func isConsistentlyAdjacentLane(track: MotionTrack?) -> Bool {
+        guard let meanX = meanLateralPosition(track: track) else { return false }
+        return meanX < centerLaneXRange.lowerBound || meanX > centerLaneXRange.upperBound
+    }
+
+    /// Number of consecutive frames (including current) the object has been in the center lane. Used to require sustained presence before alerting.
+    private func consecutiveFramesInCenterLane(track: MotionTrack?, currentCenter: CGPoint) -> Int {
+        guard centerLaneXRange.contains(currentCenter.x) else { return 0 }
+        var count = 1
+        guard let track = track else { return count }
+        for sample in track.samples.reversed() {
+            guard centerLaneXRange.contains(sample.center.x) else { break }
+            count += 1
+        }
+        return count
+    }
+
+    /// True if we have positive growth over the last N consecutive frame intervals (avoids one-frame "closing" spikes).
+    private func hasConsecutivePositiveGrowth(track: MotionTrack?, currentArea: CGFloat, currentTime: Date) -> Bool {
+        guard let track = track, track.samples.count >= 2, let last = track.lastSample else { return false }
+        let prev = track.samples[track.samples.count - 2]
+        let dt = CGFloat(currentTime.timeIntervalSince(last.timestamp))
+        let prevDt = CGFloat(last.timestamp.timeIntervalSince(prev.timestamp))
+        guard dt > 0, prevDt > 0 else { return false }
+        let currentGrowth = (currentArea - last.area) / dt
+        let prevGrowth = (last.area - prev.area) / prevDt
+        return currentGrowth > 0.005 && prevGrowth > 0.005
+    }
+
     private func isNearForwardPath(_ detection: DetectedObject) -> Bool {
         let expandedX = (forwardPathXRange.lowerBound - nearPathMargin)...(forwardPathXRange.upperBound + nearPathMargin)
         let expandedY = (forwardPathYRange.lowerBound - nearPathMargin)...(forwardPathYRange.upperBound + nearPathMargin)

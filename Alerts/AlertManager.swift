@@ -35,6 +35,9 @@ final class AlertManager: ObservableObject {
     /// Minimum interval (seconds) between alerts in the same category — trims rapid repeat calls
     private let rapidRepeatMaskInterval: TimeInterval = 1.5
     
+    /// Only play the beep when priority is at or above this (higher = beep less often). Road critical ~170–180; road normal ~150–155; distraction ~65–70; drowsiness ~40–48.
+    private let beepPriorityThreshold: Int = 160
+    
     // MARK: - Private Properties
     
     private let ttsManager: TTSManager
@@ -222,11 +225,9 @@ final class AlertManager: ObservableObject {
         
         print("[AlertManager] Playing: \(request.type.rawValue) - \"\(request.phrase)\"")
         
-        // Play beepshort.mov immediately (low latency) — user hears it while ElevenLabs/TTS loads
-        if request.type.isRoadHazard {
+        // Play beep only for higher-risk events (priority >= threshold) so it happens less often
+        if request.priority >= beepPriorityThreshold {
             WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
-        } else {
-            WarningSoundPlayer.shared.playWarningSound(critical: false)
         }
         // Start TTS right away (no wait) — beep and TTS request run in parallel for fast response
         await ttsManager.speak(request.type, customPhrase: request.phrase, effectivePriority: request.priority)
