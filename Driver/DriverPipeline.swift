@@ -9,7 +9,11 @@
 import Foundation
 import Combine
 import CoreVideo
+
+#if canImport(SmartSpectraSwiftSDK)
 import SmartSpectraSwiftSDK
+#endif
+
 
 // MARK: - Driver Pipeline Output
 
@@ -169,9 +173,9 @@ final class DriverPipeline: ObservableObject {
             // Run Presage analysis
             let presageOutput = self.presageIntegration.processFrame(frame.pixelBuffer)
             
-            // Read heart rate from SmartSpectra SDK (non-blocking, reads from buffer)
-            // Only read if SmartSpectra is confirmed ready to avoid any potential blocking
+            // Read heart rate from SmartSpectra SDK (non-blocking, reads from buffer) if available
             var heartRateBPM: Double? = nil
+#if canImport(SmartSpectraSwiftSDK)
             if self.smartSpectraReady {
                 let sdk = SmartSpectraSwiftSDK.shared
                 // Safely access metrics buffer - wrap in optional chaining to prevent crashes
@@ -183,6 +187,7 @@ final class DriverPipeline: ObservableObject {
                     heartRateBPM = Double(hr.value)
                 }
             }
+#endif
             
             // Check for Vision-based events
             let visionEvents = self.visionAttention.checkForEvents(state: attentionState)

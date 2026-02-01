@@ -10,7 +10,11 @@ import SwiftUI
 import Combine
 import CoreVideo
 import CoreImage
+
+#if canImport(SmartSpectraSwiftSDK)
 import SmartSpectraSwiftSDK
+#endif
+
 
 // MARK: - App Mode
 
@@ -660,6 +664,7 @@ final class ContentViewModel: ObservableObject {
     }
     
     /// Subscribe to SmartSpectra frame updates (for driver mode)
+#if canImport(SmartSpectraSwiftSDK)
     private func subscribeToSmartSpectraFrames() {
         // Stop any existing timer first
         smartSpectraFrameTimer?.invalidate()
@@ -676,6 +681,11 @@ final class ContentViewModel: ObservableObject {
             }
         }
     }
+#else
+    private func subscribeToSmartSpectraFrames() {
+        // SmartSpectra SDK not available — no-op
+    }
+#endif
     
     /// Stop SmartSpectra frame polling
     private func stopSmartSpectraFramePolling() {
@@ -739,61 +749,63 @@ final class ContentViewModel: ObservableObject {
     
     // MARK: - Heart Rate Monitoring (SmartSpectra)
     
+    /// Start/stop/poll SmartSpectra heart-rate related helpers.
+#if canImport(SmartSpectraSwiftSDK)
     /// Start heart rate monitoring with SmartSpectra
     /// Call this when switching to driver mode (front camera)
     func startHeartRateMonitoring() {
         // Stop any existing timer
         stopHeartRateMonitoring()
-        
+
         // Start SmartSpectra processing
         let vitalsProcessor = SmartSpectraVitalsProcessor.shared
         vitalsProcessor.startProcessing()
         vitalsProcessor.startRecording()
-        
+
         isSmartSpectraActive = true
         driverPipeline.setSmartSpectraReady(true)
-        
+
         // Start polling timer (every 500ms = 2Hz)
         heartRateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.pollHeartRate()
         }
-        
+
         // Start Vision face analysis on SmartSpectra frames
         startVisionAnalysis()
     }
-    
+
     /// Stop heart rate monitoring
     func stopHeartRateMonitoring() {
         heartRateTimer?.invalidate()
         heartRateTimer = nil
-        
+
         // Stop frame polling timer
         stopSmartSpectraFramePolling()
-        
+
         // Stop Vision analysis
         stopVisionAnalysis()
-        
+
         if isSmartSpectraActive {
             let vitalsProcessor = SmartSpectraVitalsProcessor.shared
             vitalsProcessor.stopRecording()
             vitalsProcessor.stopProcessing()
             isSmartSpectraActive = false
         }
-        
+
         driverPipeline.setSmartSpectraReady(false)
         heartRateBPM = nil
         heartRateHistory.removeAll()
     }
-    
+
     /// Poll heart rate from SmartSpectra SDK (called every 500ms)
     private func pollHeartRate() {
         guard let metrics = SmartSpectraSwiftSDK.shared.metricsBuffer,
               !metrics.pulse.rate.isEmpty,
               let hr = metrics.pulse.rate.last else { return }
-        
+
         let bpm = Double(hr.value)
         guard bpm > 0 && bpm < 250 else { return }
-        
+
         // Rolling average of last 5 measurements
         heartRateHistory.append(bpm)
         if heartRateHistory.count > maxHeartRateHistorySize {
@@ -801,11 +813,33 @@ final class ContentViewModel: ObservableObject {
         }
         heartRateBPM = heartRateHistory.reduce(0, +) / Double(heartRateHistory.count)
     }
-    
+
     /// Get SmartSpectra camera image (for driver mode display)
     func getSmartSpectraImage() -> UIImage? {
         return SmartSpectraVitalsProcessor.shared.imageOutput
     }
+#else
+    func startHeartRateMonitoring() {
+        print("[ContentViewModel] SmartSpectra SDK not available — startHeartRateMonitoring no-op")
+    }
+
+    func stopHeartRateMonitoring() {
+        heartRateTimer?.invalidate()
+        heartRateTimer = nil
+        stopSmartSpectraFramePolling()
+        stopVisionAnalysis()
+        driverPipeline.setSmartSpectraReady(false)
+        isSmartSpectraActive = false
+        heartRateBPM = nil
+        heartRateHistory.removeAll()
+    }
+
+    private func pollHeartRate() {
+        // SDK not available — nothing to poll
+    }
+
+    func getSmartSpectraImage() -> UIImage? { return nil }
+#endif
     
     // MARK: - Vision Face Analysis (Blink & Gaze Detection)
     
@@ -815,9 +849,11 @@ final class ContentViewModel: ObservableObject {
         visionAttention.reset()
         isVisionAnalysisBusy = false
         
-        // Run at 8Hz (every 125ms) - good balance of responsiveness and efficiency
-        visionAnalysisTimer = Timer.scheduledTimer(withTimeInterval: 0.125, repeats: true) { [weak self] _ in
-            self?.analyzeFrameWithVision()
+        // Run at 8Hz (every 125ms) - ensure invocation happens on main thread
+        visionAnalysisTimer = Timer.scheduledTimer(withTimeInterval: 0.125, repeats: true) { _ in
+            DispatchQueue.main.async { [weak self] in
+                self?.analyzeFrameWithVision()
+            }
         }
     }
     
@@ -833,39 +869,40 @@ final class ContentViewModel: ObservableObject {
     private func analyzeFrameWithVision() {
         // Skip if still processing previous frame (prevents buildup)
         guard !isVisionAnalysisBusy else { return }
-        
-        guard isSmartSpectraActive,
-              let image = SmartSpectraVitalsProcessor.shared.imageOutput else {
-            return
-        }
-        
+
+#if canImport(SmartSpectraSwiftSDK)
+        guard isSmartSpectraActive, let image = SmartSpectraVitalsProcessor.shared.imageOutput else { return }
+
         isVisionAnalysisBusy = true
-        
+
         // Convert and analyze on background thread
-        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+        DispatchQueue.global(qos: .userInteractive).async { [weak self, image] in
             guard let self = self else { return }
-            
+
             // Convert UIImage to CVPixelBuffer (optimized)
             guard let pixelBuffer = self.convertToPixelBufferFast(image) else {
                 DispatchQueue.main.async { self.isVisionAnalysisBusy = false }
                 return
             }
-            
+
             // Analyze for blinks and gaze
             let state = self.visionAttention.analyzeAttention(in: pixelBuffer)
             let events = self.visionAttention.checkForEvents(state: state)
-            
+
             // Update UI on main thread
             DispatchQueue.main.async {
                 self.attentionState = state
                 self.isVisionAnalysisBusy = false
-                
+
                 // Handle events (trigger alerts) - only for actual issues
                 for event in events {
                     self.handleVisionEvent(event)
                 }
             }
         }
+#else
+        return
+#endif
     }
     
     /// Convert UIImage to CVPixelBuffer for Vision analysis (full resolution for accuracy)

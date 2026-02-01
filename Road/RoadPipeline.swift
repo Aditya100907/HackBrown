@@ -10,6 +10,12 @@ import Foundation
 import Combine
 import CoreVideo
 
+// Lightweight wrapper to allow passing CVPixelBuffer into @Sendable contexts.
+// Use with caution: this is @unchecked Sendable because CVPixelBuffer is not Sendable by default.
+private struct PixelBufferBox: @unchecked Sendable {
+    let buffer: CVPixelBuffer
+}
+
 // MARK: - Road Pipeline Output
 
 /// Output from the road pipeline for each processed frame
@@ -136,13 +142,16 @@ final class RoadPipeline: ObservableObject {
         isCurrentlyProcessing = true
         processingLock.unlock()
         
-        processingQueue.async { [weak self] in
+        // Box the pixel buffer before dispatching to avoid capturing non-Sendable `frame` in the async closure
+        let pbBox = PixelBufferBox(buffer: frame.pixelBuffer)
+
+        processingQueue.async { [weak self, pbBox] in
             guard let self = self else { return }
-            
+
             let timestamp = Date()
-            
+
             // Run object detection (already has internal throttling too)
-            let detections = self.detector.detect(in: frame.pixelBuffer)
+            let detections = self.detector.detect(in: pbBox.buffer)
             
             // Run heuristics analysis
             let analysis = self.heuristics.analyze(detections: detections, timestamp: timestamp)
@@ -181,7 +190,7 @@ extension RoadPipelineOutput {
     var vehicles: [DetectedObject] {
         detections.filter { $0.label.isVehicle }
     }
-    
+
     /// Get detections filtered to vulnerable road users (pedestrians, cyclists)
     var vulnerableRoadUsers: [DetectedObject] {
         detections.filter { $0.label.isVulnerableRoadUser }
