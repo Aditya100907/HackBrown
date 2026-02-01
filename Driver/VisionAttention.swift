@@ -49,6 +49,7 @@ enum GazeDirection {
 enum AttentionIssueType: String {
     case eyesOffRoad = "eyes_off_road"
     case drowsiness = "drowsiness"
+    case repeatedDrowsyBlinks = "repeated_drowsy_blinks"  // 3+ long blinks in a row
     case noFaceDetected = "no_face"
 }
 
@@ -80,25 +81,34 @@ enum AttentionSeverity: Int, Comparable {
 /// Analyzes driver attention using Vision face landmarks
 final class VisionAttention {
     
-    // MARK: - Configuration
+    // MARK: - Configuration (tuned for real-world use - less sensitive, less annoying)
     
-    /// Minimum eye aspect ratio to consider eyes open
-    private let eyeOpenThreshold: CGFloat = 0.15
+    /// Minimum eye aspect ratio to consider eyes open (lower = more forgiving)
+    private let eyeOpenThreshold: CGFloat = 0.12
     
-    /// How long eyes must be closed to trigger drowsiness alert
-    private let drowsinessThreshold: TimeInterval = 0.5
+    /// How long eyes must be CONTINUOUSLY closed to trigger drowsiness alert (very long to avoid false positives)
+    private let drowsinessThreshold: TimeInterval = 2.5
     
-    /// How long looking down to trigger distraction alert (increased from 0.5s to 1.5s for less sensitivity)
-    private let lookingDownThreshold: TimeInterval = 1.5
+    /// Threshold for a "long blink" indicating drowsiness (0.5s = obviously slow blink)
+    private let longBlinkThreshold: TimeInterval = 0.5
     
-    /// How long looking left/right/away to trigger distraction alert (increased from 1.0s to 2.5s for less sensitivity)
-    private let lookingAwayThreshold: TimeInterval = 2.5
+    /// Number of consecutive long blinks to trigger drowsiness warning (need 5 slow blinks)
+    private let consecutiveLongBlinksForAlert: Int = 5
     
-    /// Pitch angle threshold for "looking down" (radians)
-    private let lookingDownPitchThreshold: Float = -0.3
+    /// Time window to count consecutive long blinks (reset if no blink within this time)
+    private let blinkWindowTimeout: TimeInterval = 30.0
     
-    /// Yaw angle threshold for "looking sideways" (radians)
-    private let lookingSidewaysYawThreshold: Float = 0.4
+    /// How long looking down to trigger distraction alert (3.5s = clearly not glancing)
+    private let lookingDownThreshold: TimeInterval = 3.5
+    
+    /// How long looking left/right/away to trigger distraction alert (4s = definitely not just checking mirrors)
+    private let lookingAwayThreshold: TimeInterval = 4.0
+    
+    /// Pitch angle threshold for "looking down" (radians) - more forgiving
+    private let lookingDownPitchThreshold: Float = -0.35
+    
+    /// Yaw angle threshold for "looking sideways" (radians) - wider tolerance for mirror checks
+    private let lookingSidewaysYawThreshold: Float = 0.5
     
     // MARK: - State Tracking
     
@@ -120,9 +130,43 @@ final class VisionAttention {
     /// Last detected state
     private var lastState: AttentionState?
     
+    // MARK: - Alert Cooldowns (prevent spam)
+    
+    /// Minimum time between drowsiness alerts (30 seconds)
+    private let drowsinessAlertCooldown: TimeInterval = 30.0
+    
+    /// Minimum time between gaze alerts (20 seconds)
+    private let gazeAlertCooldown: TimeInterval = 20.0
+    
+    /// Last time a drowsiness alert was triggered
+    private var lastDrowsinessAlert: Date?
+    
+    /// Last time a gaze alert was triggered
+    private var lastGazeAlert: Date?
+    
+    /// Minimum face confidence to trust detection (0.5 = moderate confidence)
+    private let minFaceConfidence: Float = 0.5
+    
+    // MARK: - Long Blink Detection (Drowsiness Pattern)
+    
+    /// Count of consecutive long blinks (eyes closed > 0.5s)
+    private var consecutiveLongBlinks: Int = 0
+    
+    /// Timestamp of the last recorded long blink
+    private var lastLongBlinkTime: Date?
+    
+    /// Whether we're currently in a blink (eyes closed)
+    private var isCurrentlyBlinking: Bool = false
+    
+    /// When the current blink started
+    private var currentBlinkStartTime: Date?
+    
+    /// Whether we already triggered drowsiness alert for current blink sequence
+    private var drowsyBlinkAlertTriggered: Bool = false
+    
     // MARK: - Analysis
     
-    /// Analyze a frame for driver attention
+    /// Analyze a frame for driver attention (synchronous, optimized)
     /// - Parameter pixelBuffer: Front camera frame
     /// - Returns: Current attention state
     func analyzeAttention(in pixelBuffer: CVPixelBuffer) -> AttentionState {
@@ -132,37 +176,26 @@ final class VisionAttention {
         var gazeDirection: GazeDirection = .unknown
         var faceConfidence: Float = 0
         
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        // Create face landmarks request
-        let request = VNDetectFaceLandmarksRequest { [weak self] request, error in
-            defer { semaphore.signal() }
-            
-            guard let self = self,
-                  let observations = request.results as? [VNFaceObservation],
-                  let face = observations.first else {
-                return
-            }
-            
-            faceDetected = true
-            faceConfidence = face.confidence
-            
-            // Analyze eye state
-            if let landmarks = face.landmarks {
-                eyesOpen = self.analyzeEyeState(landmarks: landmarks)
-            }
-            
-            // Analyze gaze direction from face orientation
-            gazeDirection = self.analyzeGazeDirection(face: face)
-        }
+        // Use synchronous VNSequenceRequestHandler for efficiency (no semaphore needed)
+        let request = VNDetectFaceLandmarksRequest()
+        request.revision = VNDetectFaceLandmarksRequestRevision3  // Faster revision
         
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
         
         do {
             try handler.perform([request])
-            semaphore.wait()
+            
+            if let face = request.results?.first {
+                faceDetected = true
+                faceConfidence = face.confidence
+                
+                if let landmarks = face.landmarks {
+                    eyesOpen = analyzeEyeState(landmarks: landmarks)
+                }
+                gazeDirection = analyzeGazeDirection(face: face)
+            }
         } catch {
-            print("[VisionAttention] Error: \(error)")
+            // Silent fail - face detection errors are common and expected
         }
         
         let state = AttentionState(
@@ -184,36 +217,107 @@ final class VisionAttention {
         var events: [AttentionEvent] = []
         let now = state.timestamp
         
-        // Check for drowsiness (prolonged eye closure)
-        if !state.eyesOpen {
+        // Skip unreliable detections (low confidence or no face)
+        let reliableDetection = state.faceDetected && state.faceConfidence >= minFaceConfidence
+        
+        // ============================================================
+        // LONG BLINK DETECTION (Drowsiness Pattern)
+        // Track blinks that last > 0.5s - 5 in a row = drowsiness warning
+        // ============================================================
+        
+        if !state.eyesOpen && reliableDetection {
+            // Eyes just closed - start tracking this blink
+            if !isCurrentlyBlinking {
+                isCurrentlyBlinking = true
+                currentBlinkStartTime = now
+            }
+        } else if state.eyesOpen && isCurrentlyBlinking {
+            // Eyes just opened - blink ended, check duration
+            isCurrentlyBlinking = false
+            
+            if let blinkStart = currentBlinkStartTime {
+                let blinkDuration = now.timeIntervalSince(blinkStart)
+                
+                // Check if this was a "long blink" (> 0.5 seconds)
+                if blinkDuration >= longBlinkThreshold {
+                    // Check if we should reset the counter (too much time passed)
+                    if let lastBlink = lastLongBlinkTime,
+                       now.timeIntervalSince(lastBlink) > blinkWindowTimeout {
+                        consecutiveLongBlinks = 0
+                        drowsyBlinkAlertTriggered = false
+                    }
+                    
+                    // Record this long blink
+                    consecutiveLongBlinks += 1
+                    lastLongBlinkTime = now
+                    
+                    // Check if we've hit threshold AND cooldown has passed
+                    let cooldownOK = lastDrowsinessAlert == nil || now.timeIntervalSince(lastDrowsinessAlert!) >= drowsinessAlertCooldown
+                    
+                    if consecutiveLongBlinks >= consecutiveLongBlinksForAlert && !drowsyBlinkAlertTriggered && cooldownOK {
+                        events.append(AttentionEvent(
+                            type: .repeatedDrowsyBlinks,
+                            severity: .high,
+                            timestamp: now,
+                            description: "Drowsy - \(consecutiveLongBlinks) slow blinks",
+                            duration: nil
+                        ))
+                        drowsyBlinkAlertTriggered = true
+                        lastDrowsinessAlert = now
+                    }
+                } else {
+                    // Normal quick blink - DON'T reset the counter (allow mixed blinks)
+                    // Only reset if it's been too long since last long blink
+                }
+            }
+            currentBlinkStartTime = nil
+        }
+        
+        // ============================================================
+        // PROLONGED EYE CLOSURE (Existing drowsiness detection)
+        // Only trigger with reliable detection and respecting cooldown
+        // ============================================================
+        
+        // Check for drowsiness (prolonged eye closure) - only with reliable detection
+        if !state.eyesOpen && reliableDetection {
             if eyesClosedSince == nil {
                 eyesClosedSince = now
             } else if let closedSince = eyesClosedSince {
                 let duration = now.timeIntervalSince(closedSince)
-                if duration >= drowsinessThreshold {
+                let cooldownOK = lastDrowsinessAlert == nil || now.timeIntervalSince(lastDrowsinessAlert!) >= drowsinessAlertCooldown
+                
+                if duration >= drowsinessThreshold && cooldownOK {
                     let severity: AttentionSeverity = duration > drowsinessThreshold * 2 ? .critical : .high
                     events.append(AttentionEvent(
                         type: .drowsiness,
                         severity: severity,
                         timestamp: now,
-                        description: "Driver eyes closed for \(String(format: "%.1f", duration))s",
+                        description: "Eyes closed for \(String(format: "%.1f", duration))s",
                         duration: duration
                     ))
+                    lastDrowsinessAlert = now
+                    eyesClosedSince = nil  // Reset to prevent spam
                 }
             }
         } else {
             eyesClosedSince = nil
         }
         
-        // Check for gaze-specific distraction with different thresholds
+        // ============================================================
+        // GAZE DIRECTION ALERTS (with cooldown to prevent spam)
+        // ============================================================
+        
         // Reset trackers for directions we're not currently looking
         if state.gazeDirection != .down { gazeDownSince = nil }
         if state.gazeDirection != .left { gazeLeftSince = nil }
         if state.gazeDirection != .right { gazeRightSince = nil }
-        if state.gazeDirection != .unknown || !state.faceDetected { gazeUnknownSince = nil }
+        if state.gazeDirection != .unknown || !reliableDetection { gazeUnknownSince = nil }
         
-        // Check for looking down (shorter threshold - 0.5s)
-        if state.gazeDirection == .down && state.faceDetected {
+        // Only check gaze with reliable detection and cooldown
+        let gazeCooldownOK = lastGazeAlert == nil || now.timeIntervalSince(lastGazeAlert!) >= gazeAlertCooldown
+        
+        // Check for looking down (3.5s threshold)
+        if state.gazeDirection == .down && reliableDetection && gazeCooldownOK {
             if gazeDownSince == nil {
                 gazeDownSince = now
             } else if let downSince = gazeDownSince {
@@ -227,12 +331,14 @@ final class VisionAttention {
                         description: "Looking down for \(String(format: "%.1f", duration))s",
                         duration: duration
                     ))
+                    lastGazeAlert = now
+                    gazeDownSince = nil  // Reset to prevent spam
                 }
             }
         }
         
-        // Check for looking left (1.0s threshold)
-        if state.gazeDirection == .left && state.faceDetected {
+        // Check for looking left (4.0s threshold)
+        if state.gazeDirection == .left && reliableDetection && gazeCooldownOK {
             if gazeLeftSince == nil {
                 gazeLeftSince = now
             } else if let leftSince = gazeLeftSince {
@@ -246,12 +352,14 @@ final class VisionAttention {
                         description: "Looking left for \(String(format: "%.1f", duration))s",
                         duration: duration
                     ))
+                    lastGazeAlert = now
+                    gazeLeftSince = nil  // Reset to prevent spam
                 }
             }
         }
         
-        // Check for looking right (1.0s threshold)
-        if state.gazeDirection == .right && state.faceDetected {
+        // Check for looking right (4.0s threshold)
+        if state.gazeDirection == .right && reliableDetection && gazeCooldownOK {
             if gazeRightSince == nil {
                 gazeRightSince = now
             } else if let rightSince = gazeRightSince {
@@ -265,39 +373,15 @@ final class VisionAttention {
                         description: "Looking right for \(String(format: "%.1f", duration))s",
                         duration: duration
                     ))
+                    lastGazeAlert = now
+                    gazeRightSince = nil  // Reset to prevent spam
                 }
             }
         }
         
-        // Check for unknown gaze direction (1.0s threshold)
-        if state.gazeDirection == .unknown && state.faceDetected {
-            if gazeUnknownSince == nil {
-                gazeUnknownSince = now
-            } else if let unknownSince = gazeUnknownSince {
-                let duration = now.timeIntervalSince(unknownSince)
-                if duration >= lookingAwayThreshold {
-                    let severity: AttentionSeverity = duration > lookingAwayThreshold * 2 ? .high : .medium
-                    events.append(AttentionEvent(
-                        type: .eyesOffRoad,
-                        severity: severity,
-                        timestamp: now,
-                        description: "Looking away for \(String(format: "%.1f", duration))s",
-                        duration: duration
-                    ))
-                }
-            }
-        }
-        
-        // Check for no face detected (driver not visible)
-        if !state.faceDetected {
-            events.append(AttentionEvent(
-                type: .noFaceDetected,
-                severity: .low,
-                timestamp: now,
-                description: "Driver face not detected",
-                duration: nil
-            ))
-        }
+        // NOTE: Unknown gaze direction and no-face events are NOT generated
+        // to avoid annoying false positives. The system only alerts on
+        // clear, reliable detections of actual drowsiness or distraction.
         
         return events
     }
@@ -310,6 +394,17 @@ final class VisionAttention {
         gazeRightSince = nil
         gazeUnknownSince = nil
         lastState = nil
+        
+        // Reset blink tracking
+        consecutiveLongBlinks = 0
+        lastLongBlinkTime = nil
+        isCurrentlyBlinking = false
+        currentBlinkStartTime = nil
+        drowsyBlinkAlertTriggered = false
+        
+        // Reset cooldowns (allow immediate alerts after reset)
+        lastDrowsinessAlert = nil
+        lastGazeAlert = nil
     }
     
     // MARK: - Private Analysis Methods

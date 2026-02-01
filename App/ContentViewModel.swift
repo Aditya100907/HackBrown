@@ -10,6 +10,7 @@ import SwiftUI
 import Combine
 import CoreVideo
 import CoreImage
+import SmartSpectraSwiftSDK
 
 // MARK: - App Mode
 
@@ -53,6 +54,41 @@ final class ContentViewModel: ObservableObject {
     // Alert state
     @Published var currentAlert: AlertType?
     @Published var isAlertActive: Bool = false
+    
+    // MARK: - Heart Rate State (SmartSpectra)
+    
+    /// Current heart rate in BPM (from SmartSpectra SDK) - average of last 5 measurements
+    @Published var heartRateBPM: Double?
+    
+    /// Whether SmartSpectra is actively providing data
+    @Published var isSmartSpectraActive: Bool = false
+    
+    /// Timer for heart rate polling
+    private var heartRateTimer: Timer?
+    
+    /// Timer for SmartSpectra frame polling
+    private var smartSpectraFrameTimer: Timer?
+    
+    /// Queue to store last 5 heart rate measurements for averaging
+    private var heartRateHistory: [Double] = []
+    private let maxHeartRateHistorySize: Int = 5
+    
+    // MARK: - Vision Face Analysis (runs on SmartSpectra frames)
+    
+    /// Vision attention analyzer for blink and gaze detection
+    private let visionAttention = VisionAttention()
+    
+    /// Timer for Vision face analysis on SmartSpectra frames
+    private var visionAnalysisTimer: Timer?
+    
+    /// Latest attention state from Vision analysis
+    @Published var attentionState: AttentionState?
+    
+    /// Flag to prevent overlapping Vision analysis
+    private var isVisionAnalysisBusy = false
+    
+    /// Reusable CIContext for efficient pixel buffer conversion
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
     
     // MARK: - Dual Camera State (BeReal-style)
     
@@ -224,6 +260,11 @@ final class ContentViewModel: ObservableObject {
         currentFrameImage = secondaryFrameImage
         secondaryFrameImage = temp
         
+        // CRITICAL: Clear ALL subscriptions before switching modes
+        // This prevents subscription accumulation and reduces CPU load
+        cancellables.removeAll()
+        setupBindings()  // Re-add pipeline bindings
+        
         // Switch the pipeline to the new primary camera
         // Stop current pipelines
         driverPipeline.stop()
@@ -236,19 +277,53 @@ final class ContentViewModel: ObservableObject {
             // Clear road detection data from display
             roadOutput = nil
             
-            let frontAdapter = DualCameraFrontAdapter(dualSource: dualSource)
-            frameSource = frontAdapter
-            driverPipeline.start(with: frontAdapter)
-            print("[ContentViewModel] Switched to front camera - running driver pipeline, cleared road data")
+            // Stop dual camera - SmartSpectra will take over front camera
+            dualSource.stop()
+            
+            // Start heart rate monitoring with SmartSpectra (takes over front camera)
+            startHeartRateMonitoring()
+            
+            // Subscribe to SmartSpectra image updates for main view
+            subscribeToSmartSpectraFrames()
+            
+            // Use LiveCameraFrameSource for back camera PiP only
+            liveCameraSource.reconfigure(for: .back)
+            subscribeToBackCameraForPiP()
+            liveCameraSource.start()
+            
+            // Note: Driver pipeline is NOT started - SmartSpectra controls the camera
+            // Heart rate comes from SmartSpectra SDK directly via pollHeartRate()
+            // Vision face analysis would conflict with SmartSpectra's camera access
+            frameSource = nil
+            
+            print("[ContentViewModel] Switched to front camera - SmartSpectra active for heart rate")
         } else {
             // Back camera is primary - run road monitoring
             // Clear driver detection data from display
             driverOutput = nil
             
-            let backAdapter = DualCameraBackAdapter(dualSource: dualSource)
+            // Stop heart rate monitoring
+            stopHeartRateMonitoring()
+            
+            // Stop live camera if it was running for PiP
+            liveCameraSource.stop()
+            
+            // Restart dual camera
+            dualCameraSource = DualCameraFrameSource()
+            guard let newDualSource = dualCameraSource else {
+                print("[ContentViewModel] Failed to recreate dual camera")
+                return
+            }
+            
+            // Re-subscribe to dual camera frames
+            subscribeToDualCameraFrames()
+            
+            let backAdapter = DualCameraBackAdapter(dualSource: newDualSource)
             frameSource = backAdapter
             roadPipeline.start(with: backAdapter)
-            print("[ContentViewModel] Switched to back camera - running road pipeline, cleared driver data")
+            newDualSource.start()
+            
+            print("[ContentViewModel] Switched to back camera - road pipeline active")
         }
     }
     
@@ -417,6 +492,11 @@ final class ContentViewModel: ObservableObject {
         // Start frame source
         source.start()
         
+        // Enable heart rate reading if in driver mode (no camera start - just read from SDK buffer)
+        if appMode == .driver {
+            driverPipeline.setSmartSpectraReady(true)
+        }
+        
         // Announce system ready
         alertManager.triggerAlert(.systemReady)
     }
@@ -464,6 +544,10 @@ final class ContentViewModel: ObservableObject {
         // Start dual camera capture
         dualSource.start()
         
+        // Start SmartSpectra processing AFTER camera is running (only if front camera will be used)
+        // We'll start it when user switches to front camera, not immediately
+        // This prevents conflicts with camera initialization
+        
         // Announce system ready
         alertManager.triggerAlert(.systemReady)
         
@@ -472,6 +556,9 @@ final class ContentViewModel: ObservableObject {
     
     func stop() {
         guard isRunning else { return }
+        
+        // Stop heart rate monitoring
+        stopHeartRateMonitoring()
         
         // Stop pipelines first (cancel frame subscriptions)
         roadPipeline.stop()
@@ -492,6 +579,7 @@ final class ContentViewModel: ObservableObject {
         secondaryFrameImage = nil
         roadOutput = nil
         driverOutput = nil
+        heartRateBPM = nil
         fps = 0.0
         demoVideos = []
         currentDemoVideoIndex = 0
@@ -571,6 +659,42 @@ final class ContentViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    /// Subscribe to SmartSpectra frame updates (for driver mode)
+    private func subscribeToSmartSpectraFrames() {
+        // Stop any existing timer first
+        smartSpectraFrameTimer?.invalidate()
+        
+        // Poll at 12fps - smooth enough for display, efficient
+        smartSpectraFrameTimer = Timer.scheduledTimer(withTimeInterval: 1.0/12.0, repeats: true) { [weak self] timer in
+            guard let self = self, self.isSmartSpectraActive else {
+                timer.invalidate()
+                return
+            }
+            
+            if let image = SmartSpectraVitalsProcessor.shared.imageOutput {
+                self.currentFrameImage = image
+            }
+        }
+    }
+    
+    /// Stop SmartSpectra frame polling
+    private func stopSmartSpectraFramePolling() {
+        smartSpectraFrameTimer?.invalidate()
+        smartSpectraFrameTimer = nil
+    }
+    
+    /// Subscribe to back camera only for PiP (when SmartSpectra is handling front)
+    private func subscribeToBackCameraForPiP() {
+        liveCameraSource.framePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] frame in
+                guard let self = self else { return }
+                // Only update secondary (PiP) image
+                self.secondaryFrameImage = UIImage(pixelBuffer: frame.pixelBuffer)
+            }
+            .store(in: &cancellables)
+    }
+    
     /// Process frame from dual camera, routing to primary or secondary based on frontIsPrimary
     private func processDualCameraFrame(_ frame: Frame, isFromFrontCamera: Bool) {
         let image = UIImage(pixelBuffer: frame.pixelBuffer)
@@ -613,6 +737,183 @@ final class ContentViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Heart Rate Monitoring (SmartSpectra)
+    
+    /// Start heart rate monitoring with SmartSpectra
+    /// Call this when switching to driver mode (front camera)
+    func startHeartRateMonitoring() {
+        // Stop any existing timer
+        stopHeartRateMonitoring()
+        
+        // Start SmartSpectra processing
+        let vitalsProcessor = SmartSpectraVitalsProcessor.shared
+        vitalsProcessor.startProcessing()
+        vitalsProcessor.startRecording()
+        
+        isSmartSpectraActive = true
+        driverPipeline.setSmartSpectraReady(true)
+        
+        // Start polling timer (every 500ms = 2Hz)
+        heartRateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.pollHeartRate()
+        }
+        
+        // Start Vision face analysis on SmartSpectra frames
+        startVisionAnalysis()
+    }
+    
+    /// Stop heart rate monitoring
+    func stopHeartRateMonitoring() {
+        heartRateTimer?.invalidate()
+        heartRateTimer = nil
+        
+        // Stop frame polling timer
+        stopSmartSpectraFramePolling()
+        
+        // Stop Vision analysis
+        stopVisionAnalysis()
+        
+        if isSmartSpectraActive {
+            let vitalsProcessor = SmartSpectraVitalsProcessor.shared
+            vitalsProcessor.stopRecording()
+            vitalsProcessor.stopProcessing()
+            isSmartSpectraActive = false
+        }
+        
+        driverPipeline.setSmartSpectraReady(false)
+        heartRateBPM = nil
+        heartRateHistory.removeAll()
+    }
+    
+    /// Poll heart rate from SmartSpectra SDK (called every 500ms)
+    private func pollHeartRate() {
+        guard let metrics = SmartSpectraSwiftSDK.shared.metricsBuffer,
+              !metrics.pulse.rate.isEmpty,
+              let hr = metrics.pulse.rate.last else { return }
+        
+        let bpm = Double(hr.value)
+        guard bpm > 0 && bpm < 250 else { return }
+        
+        // Rolling average of last 5 measurements
+        heartRateHistory.append(bpm)
+        if heartRateHistory.count > maxHeartRateHistorySize {
+            heartRateHistory.removeFirst()
+        }
+        heartRateBPM = heartRateHistory.reduce(0, +) / Double(heartRateHistory.count)
+    }
+    
+    /// Get SmartSpectra camera image (for driver mode display)
+    func getSmartSpectraImage() -> UIImage? {
+        return SmartSpectraVitalsProcessor.shared.imageOutput
+    }
+    
+    // MARK: - Vision Face Analysis (Blink & Gaze Detection)
+    
+    /// Start Vision face analysis on SmartSpectra frames
+    private func startVisionAnalysis() {
+        stopVisionAnalysis()
+        visionAttention.reset()
+        isVisionAnalysisBusy = false
+        
+        // Run at 8Hz (every 125ms) - good balance of responsiveness and efficiency
+        visionAnalysisTimer = Timer.scheduledTimer(withTimeInterval: 0.125, repeats: true) { [weak self] _ in
+            self?.analyzeFrameWithVision()
+        }
+    }
+    
+    /// Stop Vision face analysis
+    private func stopVisionAnalysis() {
+        visionAnalysisTimer?.invalidate()
+        visionAnalysisTimer = nil
+        attentionState = nil
+        isVisionAnalysisBusy = false
+    }
+    
+    /// Analyze current SmartSpectra frame with Vision for blink/gaze detection
+    private func analyzeFrameWithVision() {
+        // Skip if still processing previous frame (prevents buildup)
+        guard !isVisionAnalysisBusy else { return }
+        
+        guard isSmartSpectraActive,
+              let image = SmartSpectraVitalsProcessor.shared.imageOutput else {
+            return
+        }
+        
+        isVisionAnalysisBusy = true
+        
+        // Convert and analyze on background thread
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Convert UIImage to CVPixelBuffer (optimized)
+            guard let pixelBuffer = self.convertToPixelBufferFast(image) else {
+                DispatchQueue.main.async { self.isVisionAnalysisBusy = false }
+                return
+            }
+            
+            // Analyze for blinks and gaze
+            let state = self.visionAttention.analyzeAttention(in: pixelBuffer)
+            let events = self.visionAttention.checkForEvents(state: state)
+            
+            // Update UI on main thread
+            DispatchQueue.main.async {
+                self.attentionState = state
+                self.isVisionAnalysisBusy = false
+                
+                // Handle events (trigger alerts) - only for actual issues
+                for event in events {
+                    self.handleVisionEvent(event)
+                }
+            }
+        }
+    }
+    
+    /// Convert UIImage to CVPixelBuffer for Vision analysis (full resolution for accuracy)
+    private func convertToPixelBufferFast(_ image: UIImage) -> CVPixelBuffer? {
+        guard let cgImage = image.cgImage else { return nil }
+        
+        // Use full resolution for better face detection accuracy
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault, width, height,
+            kCVPixelFormatType_32BGRA, nil, &pixelBuffer
+        )
+        
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else { return nil }
+        
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer),
+            width: width, height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else { return nil }
+        
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return buffer
+    }
+    
+    /// Handle Vision attention events and trigger alerts
+    private func handleVisionEvent(_ event: AttentionEvent) {
+        switch event.type {
+        case .repeatedDrowsyBlinks:
+            alertManager.triggerAlert(.drowsyBlinks)
+        case .drowsiness:
+            alertManager.triggerAlert(.drowsy)
+        case .eyesOffRoad:
+            alertManager.triggerAlert(.keepEyesOnRoad)
+        case .noFaceDetected:
+            break  // Silent - don't alert for missing face
+        }
+    }
+    
     // MARK: - Audio Pre-caching
     
     /// Pre-cache all TTS audio (call on app launch or settings)
@@ -637,6 +938,52 @@ extension UIImage {
         }
         
         self.init(cgImage: cgImage)
+    }
+    
+    /// Convert UIImage to CVPixelBuffer for Vision analysis
+    func toPixelBuffer() -> CVPixelBuffer? {
+        guard let cgImage = self.cgImage else { return nil }
+        
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        let attributes: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        ]
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            return nil
+        }
+        
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer),
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else {
+            return nil
+        }
+        
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        return buffer
     }
 }
 

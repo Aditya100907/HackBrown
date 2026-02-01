@@ -36,8 +36,8 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
     /// Target resolution preset. Lower = faster processing, higher latency tolerance.
     private let sessionPreset: AVCaptureSession.Preset = .hd1280x720
     
-    /// Target frame rate
-    private let targetFPS: Int32 = 30
+    /// Target frame rate (reduced from 30 for efficiency)
+    private let targetFPS: Int32 = 24
     
     // MARK: - Initialization
     
@@ -113,8 +113,21 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
         }
         
         // Add video input
+        // For front camera, try ultra-wide first for wider field of view (zoomed out)
+        let deviceType: AVCaptureDevice.DeviceType
+        if cameraPosition == .front {
+            // Try ultra-wide first for wider FOV, fallback to wide-angle
+            if let ultraWide = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .front) {
+                deviceType = .builtInUltraWideCamera
+            } else {
+                deviceType = .builtInWideAngleCamera
+            }
+        } else {
+            deviceType = .builtInWideAngleCamera
+        }
+        
         guard let videoDevice = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
+            deviceType,
             for: .video,
             position: cameraPosition.avPosition
         ) else {
@@ -131,10 +144,16 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
                 return
             }
             
-            // Configure frame rate
+            // Configure frame rate and zoom
             try videoDevice.lockForConfiguration()
             videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: targetFPS)
             videoDevice.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: targetFPS)
+            
+            // Zoom out front camera to minimum (wider field of view)
+            if cameraPosition == .front && videoDevice.activeFormat.videoMaxZoomFactor >= 1.0 {
+                videoDevice.videoZoomFactor = 1.0
+            }
+            
             videoDevice.unlockForConfiguration()
             
         } catch {

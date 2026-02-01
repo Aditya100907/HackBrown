@@ -31,6 +31,7 @@ enum AlertType: String, CaseIterable {
     // Drowsiness (lower priority) — DRIVER_DROWSY
     case drowsy = "drowsy"
     case takeBreak = "take_break"
+    case drowsyBlinks = "drowsy_blinks"  // 3 consecutive long blinks detected
     
     // System
     case systemReady = "system_ready"
@@ -62,6 +63,8 @@ enum AlertType: String, CaseIterable {
             return "You seem drowsy."
         case .takeBreak:
             return "Consider taking a break."
+        case .drowsyBlinks:
+            return "You appear drowsy. Multiple slow blinks detected. Consider taking a break."
         case .systemReady:
             return "System ready."
         }
@@ -91,6 +94,8 @@ enum AlertType: String, CaseIterable {
         // Drowsiness: important but lower priority (30-49)
         case .drowsy:
             return 45
+        case .drowsyBlinks:
+            return 48  // Slightly higher priority than generic drowsy
         case .takeBreak:
             return 40
             
@@ -116,8 +121,8 @@ enum AlertType: String, CaseIterable {
             return 5.0
             
         // Drowsiness: longer cooldown (don't nag too much)
-        case .drowsy, .takeBreak:
-            return 10.0
+        case .drowsy, .takeBreak, .drowsyBlinks:
+            return 15.0  // Longer cooldown for drowsiness alerts
             
         // System: no repeat needed
         case .systemReady:
@@ -159,7 +164,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a drowsiness alert
     var isDrowsiness: Bool {
         switch self {
-        case .drowsy, .takeBreak:
+        case .drowsy, .takeBreak, .drowsyBlinks:
             return true
         default:
             return false
@@ -231,6 +236,8 @@ func alertTypeForDriverEvent(_ eventType: DriverEventType) -> AlertType {
         return .keepEyesOnRoad
     case .drowsiness:
         return .drowsy
+    case .repeatedDrowsyBlinks:
+        return .drowsyBlinks
     case .lowAttention:
         return .keepEyesOnRoad
     case .highFatigue:

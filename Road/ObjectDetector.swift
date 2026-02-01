@@ -9,7 +9,7 @@
 import Foundation
 import CoreML
 import Vision
-import CoreVideo
+@preconcurrency import CoreVideo
 import CoreImage
 
 // MARK: - Detection Result
@@ -145,9 +145,13 @@ final class ObjectDetector: @unchecked Sendable {
     /// Whether using YOLOv8 raw output format
     private var isYOLOv8RawFormat: Bool = false
     
-    /// Frame counter for debugging
+    /// Frame counter for throttling and debugging
     private var frameCount: Int = 0
     private var lastLogTime: Date = Date()
+    
+    /// Frame throttling - only process every Nth frame to reduce CPU load
+    private let processEveryNthFrame: Int = 3  // Process every 3rd frame (~10fps)
+    private var framesSinceLastProcess: Int = 0
     
     // MARK: - Initialization
     
@@ -273,20 +277,22 @@ final class ObjectDetector: @unchecked Sendable {
     
     // MARK: - Detection
     
+    /// Cached detections from last processed frame (for frame throttling)
+    private var cachedDetections: [DetectedObject] = []
+    
     /// Detect objects in a pixel buffer
     /// - Parameter pixelBuffer: Input image
     /// - Returns: Array of detected objects (ONLY road-relevant: cars, trucks, buses, motorcycles, people, bicycles)
     nonisolated func detect(in pixelBuffer: CVPixelBuffer) -> [DetectedObject] {
         frameCount += 1
+        framesSinceLastProcess += 1
         
-        // Log every 30 frames (~1 second at 30fps)
-        let now = Date()
-        if now.timeIntervalSince(lastLogTime) >= 2.0 {
-            let fps = Double(frameCount) / now.timeIntervalSince(lastLogTime)
-            print("[ObjectDetector] Processing frames at \(String(format: "%.1f", fps)) fps, model ready: \(isReady)")
-            frameCount = 0
-            lastLogTime = now
+        // FRAME THROTTLING: Skip frames to reduce CPU load
+        // Return cached results for skipped frames
+        if framesSinceLastProcess < processEveryNthFrame {
+            return cachedDetections
         }
+        framesSinceLastProcess = 0
         
         var detections: [DetectedObject] = []
         
@@ -298,14 +304,14 @@ final class ObjectDetector: @unchecked Sendable {
         else if let mlModel = mlModel {
             detections = detectWithRawYOLOv8(pixelBuffer: pixelBuffer, model: mlModel)
         }
-        // Log if no model available
-        else if frameCount == 1 {
-            print("[ObjectDetector] No model available - returning empty detections")
-        }
         
-        // STRICT FILTER: Only return road-relevant objects (cars, trucks, buses, motorcycles, people, bicycles)
-        // NO planes, NO trains, NO boats, NO animals, NO furniture, NO food, etc.
-        return detections.filter { $0.label.isRoadRelevant }
+        // STRICT FILTER: Only return road-relevant objects
+        let filtered = detections.filter { $0.label.isRoadRelevant }
+        
+        // Cache for throttled frames
+        cachedDetections = filtered
+        
+        return filtered
     }
     
     /// Detect using Vision framework
@@ -567,23 +573,8 @@ final class ObjectDetector: @unchecked Sendable {
             ))
         }
         
-        // Log raw detection counts by class for debugging
-        if !detections.isEmpty {
-            let classCounts = Dictionary(grouping: detections, by: { $0.label })
-                .mapValues { $0.count }
-                .sorted { $0.value > $1.value }
-            let summary = classCounts.map { "\($0.key.rawValue):\($0.value)" }.joined(separator: ", ")
-            print("[ObjectDetector] Raw detections by class: \(summary)")
-        }
-        
-        // Apply non-maximum suppression
-        let nmsDetections = nonMaximumSuppression(detections: detections, iouThreshold: iouThreshold)
-        
-        if !nmsDetections.isEmpty {
-            print("[ObjectDetector] Detected \(nmsDetections.count) objects: \(nmsDetections.map { "\($0.label.rawValue) (\(Int($0.confidence * 100))%)" }.joined(separator: ", "))")
-        }
-        
-        return nmsDetections
+        // Apply non-maximum suppression (removed excessive logging for performance)
+        return nonMaximumSuppression(detections: detections, iouThreshold: iouThreshold)
     }
     
     /// Non-maximum suppression to remove overlapping detections
@@ -663,7 +654,9 @@ final class ObjectDetector: @unchecked Sendable {
     }
     
     /// Async version of detect
-    func detectAsync(in pixelBuffer: CVPixelBuffer) async -> [DetectedObject] {
+    /// Note: This function has a known Sendable warning for CVPixelBuffer
+    /// This is safe because CVPixelBuffer is only read, not modified
+    nonisolated(unsafe) func detectAsync(in pixelBuffer: CVPixelBuffer) async -> [DetectedObject] {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let results = self.detect(in: pixelBuffer)

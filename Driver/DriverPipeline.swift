@@ -9,6 +9,7 @@
 import Foundation
 import Combine
 import CoreVideo
+import SmartSpectraSwiftSDK
 
 // MARK: - Driver Pipeline Output
 
@@ -19,6 +20,9 @@ struct DriverPipelineOutput {
     
     /// Presage output (attention/fatigue scores)
     let presageOutput: PresageOutput
+    
+    /// Heart rate in BPM (from SmartSpectra, if available)
+    let heartRateBPM: Double?
     
     /// Combined attention events from both sources
     let events: [AttentionEvent]
@@ -49,6 +53,7 @@ struct DriverEvent {
 enum DriverEventType: String {
     case distraction = "distraction"
     case drowsiness = "drowsiness"
+    case repeatedDrowsyBlinks = "repeated_drowsy_blinks"  // 3+ long blinks in a row
     case lowAttention = "low_attention"
     case highFatigue = "high_fatigue"
 }
@@ -98,6 +103,9 @@ final class DriverPipeline: ObservableObject {
     private var lastEventTime: [DriverEventType: Date] = [:]
     private let eventCooldown: TimeInterval = 3.0  // Don't repeat same event within 3s
     
+    /// Whether SmartSpectra is ready to read from (prevents reading before it's initialized)
+    private var smartSpectraReady: Bool = false
+    
     // MARK: - Initialization
     
     init(presageProvider: PresageProvider? = nil) {
@@ -130,6 +138,12 @@ final class DriverPipeline: ObservableObject {
         presageIntegration.stop()
         isProcessing = false
         latestOutput = nil
+        smartSpectraReady = false  // Reset SmartSpectra readiness
+    }
+    
+    /// Mark SmartSpectra as ready (call this after SmartSpectra has been started)
+    func setSmartSpectraReady(_ ready: Bool) {
+        smartSpectraReady = ready
     }
     
     // MARK: - Frame Processing
@@ -155,6 +169,21 @@ final class DriverPipeline: ObservableObject {
             // Run Presage analysis
             let presageOutput = self.presageIntegration.processFrame(frame.pixelBuffer)
             
+            // Read heart rate from SmartSpectra SDK (non-blocking, reads from buffer)
+            // Only read if SmartSpectra is confirmed ready to avoid any potential blocking
+            var heartRateBPM: Double? = nil
+            if self.smartSpectraReady {
+                let sdk = SmartSpectraSwiftSDK.shared
+                // Safely access metrics buffer - wrap in optional chaining to prevent crashes
+                if let metrics = sdk.metricsBuffer,
+                   !metrics.pulse.rate.isEmpty,
+                   let hr = metrics.pulse.rate.last,
+                   hr.stable,
+                   hr.value > 0 && hr.value < 250 {  // Sanity check: reasonable heart rate range
+                    heartRateBPM = Double(hr.value)
+                }
+            }
+            
             // Check for Vision-based events
             let visionEvents = self.visionAttention.checkForEvents(state: attentionState)
             
@@ -166,6 +195,7 @@ final class DriverPipeline: ObservableObject {
             let output = DriverPipelineOutput(
                 attentionState: attentionState,
                 presageOutput: presageOutput,
+                heartRateBPM: heartRateBPM,
                 events: visionEvents,
                 timestamp: timestamp
             )
@@ -199,6 +229,8 @@ final class DriverPipeline: ObservableObject {
                 eventType = .distraction
             case .drowsiness:
                 eventType = .drowsiness
+            case .repeatedDrowsyBlinks:
+                eventType = .repeatedDrowsyBlinks
             case .noFaceDetected:
                 eventType = .distraction
             }
