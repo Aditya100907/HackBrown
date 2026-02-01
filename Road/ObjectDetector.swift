@@ -10,6 +10,7 @@ import Foundation
 import CoreML
 import Vision
 import CoreVideo
+import CoreImage
 
 // MARK: - Detection Result
 

@@ -146,13 +146,11 @@ final class VideoFileFrameSource: FrameSource {
         }
         reader.add(output)
 
-        do {
-            try reader.startReading()
-            // Start the frame timer only after the reader is ready
-            startFrameTimer()
-        } catch {
-            print("[VideoFileFrameSource] startReading failed: \(error)")
+        guard reader.startReading() else {
+            print("[VideoFileFrameSource] startReading failed")
+            return
         }
+        startFrameTimer()
     }
     
     private func startFrameTimer() {

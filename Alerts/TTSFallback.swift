@@ -12,7 +12,8 @@ import AVFoundation
 // MARK: - iOS TTS Fallback
 
 /// iOS native TTS using AVSpeechSynthesizer
-final class TTSFallback: NSObject, TTSProvider {
+/// Uses @unchecked Sendable — synthesizer is used from async speak(); delegate callbacks run on main.
+final class TTSFallback: NSObject, TTSProvider, @unchecked Sendable {
     
     // MARK: - Properties
     
@@ -25,8 +26,8 @@ final class TTSFallback: NSObject, TTSProvider {
     
     // MARK: - Configuration
     
-    /// Voice identifier (nil = system default)
-    private let voiceIdentifier: String? = nil
+    /// Preferred voice names (in order) — avoid default Siri-like Samantha
+    private static let preferredVoiceNames = ["Alex", "Daniel", "Fred", "Oliver"]
     
     /// Speaking rate (0.0 - 1.0, default ~0.5)
     private let speakingRate: Float = 0.52
@@ -55,13 +56,8 @@ final class TTSFallback: NSObject, TTSProvider {
         
         let utterance = AVSpeechUtterance(string: phrase)
         
-        // Configure voice
-        if let voiceId = voiceIdentifier {
-            utterance.voice = AVSpeechSynthesisVoice(identifier: voiceId)
-        } else {
-            // Use enhanced English voice if available
-            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        }
+        // Prefer distinct voices (Alex, Daniel, etc.) over default Siri-like Samantha
+        utterance.voice = Self.selectPreferredVoice() ?? AVSpeechSynthesisVoice(language: "en-US")
         
         utterance.rate = speakingRate
         utterance.pitchMultiplier = pitchMultiplier
@@ -93,6 +89,21 @@ final class TTSFallback: NSObject, TTSProvider {
     }
     
     // MARK: - Private Methods
+    
+    private static func selectPreferredVoice() -> AVSpeechSynthesisVoice? {
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        for name in preferredVoiceNames {
+            if let voice = voices.first(where: {
+                $0.name.range(of: name, options: .caseInsensitive) != nil && $0.language.hasPrefix("en")
+            }) {
+                print("[TTSFallback] Using voice: \(voice.name) (\(voice.language))")
+                return voice
+            }
+        }
+        let fallback = AVSpeechSynthesisVoice(language: "en-US")
+        print("[TTSFallback] Using default en-US voice: \(fallback?.name ?? "nil")")
+        return fallback
+    }
     
     private func configureAudioSession() {
         do {

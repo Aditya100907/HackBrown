@@ -16,15 +16,15 @@ struct ElevenLabsConfig {
     /// API key (set this before using, or load from Info.plist)
     static var apiKey: String = ""
     
-    /// Voice ID to use (default is a clear, alert-style voice)
-    static var voiceId: String = "21m00Tcm4TlvDq8ikWAM"  // "Rachel" voice
+    /// Voice ID — Arnold (crisp, authoritative, distinctly ElevenLabs; avoids iOS TTS soundalike)
+    static var voiceId: String = "VR6AewLTigWG4xSOukaG"  // Arnold
     
     /// Model ID
     static var modelId: String = "eleven_monolingual_v1"
     
     /// API endpoint
-    static let apiEndpoint = "https://api.elevenlabs.io/v1/text-to-speech"
-    
+    static let apiEndpoint = URL(string: "https://api.elevenlabs.io/v1/text-to-speech")!
+
     /// Whether API key is configured
     static var isConfigured: Bool {
         !apiKey.isEmpty
@@ -72,9 +72,10 @@ final class ElevenLabsTTS: TTSProvider {
     // MARK: - Initialization
     
     init() {
-        // Create cache directory
+        // Cache dir includes voiceId so changing voice invalidates old cached files
         let cachePath = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         cacheDirectory = cachePath.appendingPathComponent("ElevenLabsAudio", isDirectory: true)
+            .appendingPathComponent(ElevenLabsConfig.voiceId, isDirectory: true)
         
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         

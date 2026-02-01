@@ -9,6 +9,7 @@
 import SwiftUI
 import Combine
 import CoreVideo
+import CoreImage
 
 // MARK: - App Mode
 
