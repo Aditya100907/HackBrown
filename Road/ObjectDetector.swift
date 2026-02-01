@@ -276,7 +276,7 @@ final class ObjectDetector: @unchecked Sendable {
     /// Detect objects in a pixel buffer
     /// - Parameter pixelBuffer: Input image
     /// - Returns: Array of detected objects (ONLY road-relevant: cars, trucks, buses, motorcycles, people, bicycles)
-    func detect(in pixelBuffer: CVPixelBuffer) -> [DetectedObject] {
+    nonisolated func detect(in pixelBuffer: CVPixelBuffer) -> [DetectedObject] {
         frameCount += 1
         
         // Log every 30 frames (~1 second at 30fps)
@@ -309,7 +309,7 @@ final class ObjectDetector: @unchecked Sendable {
     }
     
     /// Detect using Vision framework
-    private func detectWithVision(pixelBuffer: CVPixelBuffer, model: VNCoreMLModel) -> [DetectedObject] {
+    private nonisolated func detectWithVision(pixelBuffer: CVPixelBuffer, model: VNCoreMLModel) -> [DetectedObject] {
         var detections: [DetectedObject] = []
         let semaphore = DispatchSemaphore(value: 0)
         
@@ -342,7 +342,7 @@ final class ObjectDetector: @unchecked Sendable {
     }
     
     /// Detect using raw YOLOv8 output processing
-    private func detectWithRawYOLOv8(pixelBuffer: CVPixelBuffer, model: MLModel) -> [DetectedObject] {
+    private nonisolated func detectWithRawYOLOv8(pixelBuffer: CVPixelBuffer, model: MLModel) -> [DetectedObject] {
         // Get input description to find the input name and expected format
         guard let inputDescription = model.modelDescription.inputDescriptionsByName.first else {
             print("[ObjectDetector] No input description found")
