@@ -14,6 +14,9 @@ import SwiftUI
 struct DetectionOverlayView: View {
     /// Detected objects to display
     let detections: [DetectedObject]
+
+    /// Optional motion vectors per detection (normalized units per second)
+    let motionVectors: [UUID: CGPoint]
     
     /// Frame size to scale coordinates
     let frameSize: CGSize
@@ -27,8 +30,54 @@ struct DetectionOverlayView: View {
                         containerSize: geometry.size
                     )
                 }
+
+                ForEach(detections) { detection in
+                    if let vector = motionVectors[detection.id],
+                       shouldDrawArrow(for: detection) {
+                        let start = scaledCenter(for: detection, in: geometry.size)
+                        let scaledVector = scale(vector: vector, container: geometry.size)
+                        let end = CGPoint(
+                            x: start.x + scaledVector.x,
+                            y: start.y + scaledVector.y
+                        )
+
+                        ArrowShape(start: start, end: end)
+                            .stroke(color(for: detection), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                            .shadow(color: color(for: detection).opacity(0.5), radius: 4)
+                    }
+                }
             }
         }
+    }
+
+    private func scaledCenter(for detection: DetectedObject, in size: CGSize) -> CGPoint {
+        CGPoint(
+            x: detection.center.x * size.width,
+            y: detection.center.y * size.height
+        )
+    }
+
+    private func scale(vector: CGPoint, container: CGSize) -> CGPoint {
+        let scale = min(container.width, container.height) * 0.6
+        let dx = vector.x * scale
+        let dy = vector.y * scale
+
+        // Clamp length
+        let length = hypot(dx, dy)
+        let maxLength = min(container.width, container.height) * 0.25
+        if length < 6 { return .zero }
+        let factor = min(1.0, maxLength / length)
+        return CGPoint(x: dx * factor, y: dy * factor)
+    }
+
+    private func shouldDrawArrow(for detection: DetectedObject) -> Bool {
+        detection.area > 0.02 && detection.center.y > 0.25
+    }
+
+    private func color(for detection: DetectedObject) -> Color {
+        if detection.label.isVulnerableRoadUser { return .red }
+        if detection.label.isVehicle { return .yellow }
+        return .blue
     }
 }
 
@@ -58,6 +107,7 @@ struct BoundingBoxView: View {
                 .background(boxColor)
                 .cornerRadius(2)
                 .offset(y: -20)
+
         }
         .position(x: rect.midX, y: rect.midY)
     }
@@ -86,6 +136,41 @@ struct BoundingBoxView: View {
     /// Label text (just object name, no confidence)
     private var labelText: String {
         return detection.label.rawValue.capitalized
+    }
+}
+
+// MARK: - Arrow Shape
+
+/// Simple arrow from start → end with a triangular head
+struct ArrowShape: Shape {
+    let start: CGPoint
+    let end: CGPoint
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: start)
+        path.addLine(to: end)
+
+        // Arrowhead
+        let angle = atan2(end.y - start.y, end.x - start.x)
+        let headLength: CGFloat = 12
+        let headAngle: CGFloat = .pi / 8
+
+        let point1 = CGPoint(
+            x: end.x - headLength * cos(angle - headAngle),
+            y: end.y - headLength * sin(angle - headAngle)
+        )
+        let point2 = CGPoint(
+            x: end.x - headLength * cos(angle + headAngle),
+            y: end.y - headLength * sin(angle + headAngle)
+        )
+
+        path.move(to: end)
+        path.addLine(to: point1)
+        path.move(to: end)
+        path.addLine(to: point2)
+
+        return path
     }
 }
 
@@ -320,6 +405,7 @@ struct HUDOverlay: View {
             if !frontIsPrimary, let detections = roadOutput?.detections {
                 DetectionOverlayView(
                     detections: detections,
+                    motionVectors: roadOutput?.motionVectors ?? [:],
                     frameSize: frameSize
                 )
             }
@@ -383,6 +469,7 @@ struct HUDOverlay: View {
                         boundingBox: CGRect(x: 0.1, y: 0.5, width: 0.15, height: 0.35)
                     )
                 ],
+                motionVectors: [:],
                 hazardEvents: [],
                 timestamp: Date()
             ),

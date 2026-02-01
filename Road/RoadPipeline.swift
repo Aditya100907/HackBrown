@@ -17,6 +17,9 @@ struct RoadPipelineOutput {
     /// All detected objects in the frame
     let detections: [DetectedObject]
     
+    /// Estimated motion vectors for detections (normalized units per second)
+    let motionVectors: [UUID: CGPoint]
+    
     /// Any hazard events triggered
     let hazardEvents: [RoadHazardEvent]
     
@@ -122,12 +125,13 @@ final class RoadPipeline: ObservableObject {
             let detections = self.detector.detect(in: frame.pixelBuffer)
             
             // Run heuristics analysis
-            let hazardEvents = self.heuristics.analyze(detections: detections, timestamp: timestamp)
+            let analysis = self.heuristics.analyze(detections: detections, timestamp: timestamp)
             
             // Create output
             let output = RoadPipelineOutput(
                 detections: detections,
-                hazardEvents: hazardEvents,
+                motionVectors: analysis.motionVectors,
+                hazardEvents: analysis.events,
                 timestamp: timestamp
             )
             
@@ -137,7 +141,7 @@ final class RoadPipeline: ObservableObject {
                 self.outputSubject.send(output)
                 
                 // Emit individual hazard events
-                for event in hazardEvents {
+                for event in analysis.events {
                     self.hazardEventSubject.send(event)
                 }
             }
