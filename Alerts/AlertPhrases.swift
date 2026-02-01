@@ -171,6 +171,14 @@ enum AlertType: String, CaseIterable {
             return false
         }
     }
+    
+    /// Category for rapid-repeat masking (same category in quick succession gets trimmed)
+    var alertCategory: String {
+        if isRoadHazard { return "road" }
+        if isDistraction { return "distraction" }
+        if isDrowsiness { return "drowsiness" }
+        return "system"
+    }
 }
 
 // MARK: - Alert Mapping Helpers

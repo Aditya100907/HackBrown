@@ -32,13 +32,14 @@ final class AlertManager: ObservableObject {
     /// Maximum alerts to keep in history
     private let maxHistoryCount = 10
     
-    /// Only same-type (duplicate) alerts are masked; different phrases (e.g. break vs watch out) can play without delay.
-    /// No global cooldown — different alert types are not blocked.
+    /// Minimum interval (seconds) between alerts in the same category — trims rapid repeat calls
+    private let rapidRepeatMaskInterval: TimeInterval = 1.5
     
     // MARK: - Private Properties
     
     private let ttsManager: TTSManager
     private var lastAlertTimes: [AlertType: Date] = [:]
+    private var lastPlayedTimeByCategory: [String: Date] = [:]
     private var alertQueue: [AlertRequest] = []
     private var isProcessingQueue = false
     
@@ -152,6 +153,15 @@ final class AlertManager: ObservableObject {
             }
         }
         
+        // Mask rapid repeat: same category (road/distraction/drowsiness) in quick succession — trim unnecessary back-to-back calls
+        let category = request.type.alertCategory
+        if let lastCategoryTime = lastPlayedTimeByCategory[category] {
+            let elapsed = Date().timeIntervalSince(lastCategoryTime)
+            if elapsed < rapidRepeatMaskInterval {
+                return  // Skip this one; we already played something in this category recently
+            }
+        }
+        
         // Mask duplicate: only one request per alert type in the queue (same phrase = blocked; different = allowed)
         if alertQueue.contains(where: { $0.type == request.type }) {
             return
@@ -198,8 +208,10 @@ final class AlertManager: ObservableObject {
         currentAlert = request.type
         isPlaying = true
         
-        // Record timing (only per-type; no global — so different phrases can play back-to-back)
-        lastAlertTimes[request.type] = Date()
+        // Record timing (per-type and per-category for rapid-repeat mask)
+        let now = Date()
+        lastAlertTimes[request.type] = now
+        lastPlayedTimeByCategory[request.type.alertCategory] = now
         
         // Add to history
         let entry = AlertHistoryEntry(type: request.type, timestamp: Date())
@@ -237,6 +249,7 @@ final class AlertManager: ObservableObject {
     /// Reset cooldowns (e.g., when restarting)
     func resetCooldowns() {
         lastAlertTimes.removeAll()
+        lastPlayedTimeByCategory.removeAll()
     }
 }
 
