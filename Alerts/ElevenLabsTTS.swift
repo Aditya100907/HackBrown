@@ -64,9 +64,9 @@ enum VoiceUrgency: String, CaseIterable {
     /// ElevenLabs speed (0.7–1.2). Urgent = faster delivery.
     var speed: Float {
         switch self {
-        case .calm: return 0.92
+        case .calm: return 0.85
         case .normal: return 1.0
-        case .urgent: return 1.18
+        case .urgent: return 1.2
         }
     }
     

@@ -303,6 +303,9 @@ final class ContentViewModel: ObservableObject {
         sourceMode = .videoFile
         selectedVideoFileName = "\(name).\(ext)"
         
+        // Demo shows road-style video: use back-camera overlay (bounding boxes + road status)
+        frontIsPrimary = false
+        
         // Create video source
         guard let videoSource = VideoManager.loadVideo(named: name, ext: ext) else {
             print("[ContentViewModel] Failed to load video: \(name).\(ext)")
@@ -316,13 +319,13 @@ final class ContentViewModel: ObservableObject {
         resetFPSCounter()
         alertManager.resetCooldowns()
         
+        // Start road pipeline FIRST so it subscribes before any frames are emitted
+        roadPipeline.start(with: videoSource)
+        
         // Subscribe to frames for UI preview
         subscribeToFrames()
         
-        // Start road pipeline with YOLO - this creates its own subscription to the video source
-        roadPipeline.start(with: videoSource)
-        
-        // Start video playback AFTER pipeline is subscribed
+        // Start video playback AFTER pipeline and UI are subscribed
         videoSource.start()
         
         // Announce system ready
