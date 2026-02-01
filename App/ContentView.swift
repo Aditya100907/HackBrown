@@ -55,20 +55,7 @@ struct ControlPanel: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // App mode selector
-            HStack(spacing: 8) {
-                ForEach(AppMode.allCases) { mode in
-                    AppModeButton(
-                        mode: mode,
-                        isSelected: viewModel.appMode == mode
-                    ) {
-                        viewModel.setAppMode(mode)
-                    }
-                }
-            }
-            .padding(.horizontal)
-            
-            // Status bar
+            // Status bar with buttons
             HStack {
                 // Status indicator
                 HStack(spacing: 8) {
@@ -93,20 +80,40 @@ struct ControlPanel: View {
                 
                 Spacer()
                 
-                // Start/Stop button
-                Button(action: {
-                    viewModel.toggleRunning()
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: viewModel.isRunning ? "stop.fill" : "play.fill")
-                        Text(viewModel.isRunning ? "Stop" : "Start")
+                // Two simplified buttons: Start and Demo
+                HStack(spacing: 12) {
+                    // Start/Stop button
+                    Button(action: {
+                        viewModel.toggleRunning()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: viewModel.isRunning ? "stop.fill" : "play.fill")
+                            Text(viewModel.isRunning ? "Stop" : "Start")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(viewModel.isRunning ? Color.red : Color.green)
+                        .cornerRadius(8)
                     }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(viewModel.isRunning ? Color.red : Color.green)
-                    .cornerRadius(8)
+                    
+                    // Demo button (only enabled when not running)
+                    Button(action: {
+                        viewModel.startDemo()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "film.fill")
+                            Text("Demo")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(viewModel.isRunning ? Color.gray : Color.blue)
+                        .cornerRadius(8)
+                    }
+                    .disabled(viewModel.isRunning)
                 }
             }
             .padding(.horizontal)
@@ -135,48 +142,13 @@ struct ControlPanel: View {
             if viewModel.isAlertActive {
                 return "Alert Active"
             }
-            return "Running - \(viewModel.appMode.rawValue)"
+            // Show mode based on which camera is primary
+            if viewModel.isDualCameraActive {
+                return viewModel.frontIsPrimary ? "Driver Mode" : "Road Mode"
+            }
+            return "Running - Demo"
         }
         return "Stopped"
-    }
-}
-
-// MARK: - App Mode Button
-
-struct AppModeButton: View {
-    let mode: AppMode
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Image(systemName: iconName)
-                    .font(.title3)
-                Text(mode.rawValue)
-                    .font(.caption2)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.blue.opacity(0.3) : Color.clear)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.blue : Color.gray.opacity(0.5), lineWidth: 1)
-            )
-        }
-        .foregroundColor(isSelected ? .white : .gray)
-    }
-    
-    private var iconName: String {
-        switch mode {
-        case .road:
-            return "car.fill"
-        case .driver:
-            return "person.fill"
-        case .demo:
-            return "film.fill"
-        }
     }
 }
 
@@ -251,15 +223,15 @@ struct FramePreviewView: View {
                 } else {
                     // Placeholder when no frame
                     VStack(spacing: 16) {
-                        Image(systemName: placeholderIcon)
+                        Image(systemName: "car.fill")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                         
-                        Text("Select a mode and tap Start")
+                        Text("Tap Start to begin")
                             .font(.headline)
                             .foregroundColor(.gray)
                         
-                        Text(viewModel.appMode.description)
+                        Text("Dual camera with road detection")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -283,17 +255,6 @@ struct FramePreviewView: View {
                     .padding(.trailing, 16)
                 }
             }
-        }
-    }
-    
-    private var placeholderIcon: String {
-        switch viewModel.appMode {
-        case .road:
-            return "car.fill"
-        case .driver:
-            return "person.fill"
-        case .demo:
-            return "film.fill"
         }
     }
 }

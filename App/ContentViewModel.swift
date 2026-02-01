@@ -191,6 +191,7 @@ final class ContentViewModel: ObservableObject {
     /// Toggle which camera is primary (fullscreen) vs secondary (PiP)
     /// Called when user taps the PiP view
     /// This switches BOTH the visual display AND which pipeline is running
+    /// Also clears data from the inactive pipeline
     func togglePrimaryCamera() {
         guard isDualCameraActive, let dualSource = dualCameraSource else { return }
         
@@ -207,32 +208,51 @@ final class ContentViewModel: ObservableObject {
         roadPipeline.stop()
         
         // Start the appropriate pipeline based on which camera is now primary
+        // Also clear the data from the pipeline we're switching away from
         if frontIsPrimary {
             // Front camera is primary - run driver monitoring
+            // Clear road detection data from display
+            roadOutput = nil
+            
             let frontAdapter = DualCameraFrontAdapter(dualSource: dualSource)
             frameSource = frontAdapter
             driverPipeline.start(with: frontAdapter)
-            print("[ContentViewModel] Switched to front camera - running driver pipeline")
+            print("[ContentViewModel] Switched to front camera - running driver pipeline, cleared road data")
         } else {
             // Back camera is primary - run road monitoring
+            // Clear driver detection data from display
+            driverOutput = nil
+            
             let backAdapter = DualCameraBackAdapter(dualSource: dualSource)
             frameSource = backAdapter
             roadPipeline.start(with: backAdapter)
-            print("[ContentViewModel] Switched to back camera - running road pipeline")
+            print("[ContentViewModel] Switched to back camera - running road pipeline, cleared driver data")
         }
     }
     
     func start() {
         guard !isRunning else { return }
         
-        // Check if we should use dual camera (Driver mode + supported device)
-        let useDualCamera = appMode == .driver && isDualCameraSupported
-        
-        if useDualCamera {
+        // Always use dual camera if supported (default behavior for Start button)
+        if isDualCameraSupported {
             startDualCamera()
         } else {
+            // Fallback to single back camera with road pipeline
+            appMode = .road
+            sourceMode = .liveRear
             startSingleCamera()
         }
+    }
+    
+    /// Start demo mode with video file playback
+    func startDemo() {
+        guard !isRunning else { return }
+        
+        appMode = .demo
+        sourceMode = .videoFile
+        startSingleCamera()
+        
+        print("[ContentViewModel] Started demo mode with video file")
     }
     
     /// Start with single camera (original behavior)
@@ -269,6 +289,7 @@ final class ContentViewModel: ObservableObject {
     }
     
     /// Start with dual camera (BeReal-style)
+    /// Default: back camera fullscreen (road pipeline), front camera in PiP
     private func startDualCamera() {
         // Cancel existing subscriptions and re-setup bindings
         cancellables.removeAll()
@@ -281,32 +302,39 @@ final class ContentViewModel: ObservableObject {
         
         guard let dualSource = dualCameraSource else {
             print("[ContentViewModel] Failed to create dual camera source, falling back to single camera")
+            appMode = .road
+            sourceMode = .liveRear
             startSingleCamera()
             return
         }
         
         isRunning = true
         isDualCameraActive = true
-        frontIsPrimary = true  // Reset to front camera as primary in Driver mode
+        frontIsPrimary = false  // Back camera as primary (fullscreen) by default
         resetFPSCounter()
         alertManager.resetCooldowns()
+        
+        // Clear any previous pipeline data
+        roadOutput = nil
+        driverOutput = nil
         
         // Subscribe to both camera feeds
         subscribeToDualCameraFrames()
         
-        // Create a wrapper frame source for the pipeline (front camera for driver monitoring)
-        // We'll create a simple adapter that forwards front frames to the pipeline
-        let frontFrameSource = DualCameraFrontAdapter(dualSource: dualSource)
-        frameSource = frontFrameSource
+        // Create a wrapper frame source for the pipeline (back camera for road monitoring)
+        let backFrameSource = DualCameraBackAdapter(dualSource: dualSource)
+        frameSource = backFrameSource
         
-        // Start driver pipeline with front camera frames
-        driverPipeline.start(with: frontFrameSource)
+        // Start road pipeline with back camera frames (default)
+        roadPipeline.start(with: backFrameSource)
         
         // Start dual camera capture
         dualSource.start()
         
         // Announce system ready
         alertManager.triggerAlert(.systemReady)
+        
+        print("[ContentViewModel] Started dual camera - back camera primary, road pipeline active")
     }
     
     func stop() {
