@@ -43,22 +43,15 @@ struct BoundingBoxView: View {
         let rect = scaledRect
         
         ZStack(alignment: .topLeading) {
-            // Bounding box
+            // Light fill background
             Rectangle()
-                .stroke(boxColor, lineWidth: 2)
-                .frame(width: rect.width, height: rect.height)
+                .fill(boxColor.opacity(0.15))
             
-            // Label background
-            Text(labelText)
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(boxColor)
-                .cornerRadius(2)
-                .offset(y: -20)
+            // Thick border
+            Rectangle()
+                .stroke(boxColor, lineWidth: 3)
         }
+        .frame(width: rect.width, height: rect.height)
         .position(x: rect.midX, y: rect.midY)
     }
     
