@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "T10000000000000000000002"
-               BuildableName = "HackBrown.app"
-               BlueprintName = "HackBrown"
-               ReferencedContainer = "container:HackBrown.xcodeproj">
+               BuildableName = "ThirdEye.app"
+               BlueprintName = "ThirdEye"
+               ReferencedContainer = "container:ThirdEye.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -44,9 +44,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "T10000000000000000000002"
-            BuildableName = "HackBrown.app"
-            BlueprintName = "HackBrown"
-            ReferencedContainer = "container:HackBrown.xcodeproj">
+            BuildableName = "ThirdEye.app"
+            BlueprintName = "ThirdEye"
+            ReferencedContainer = "container:ThirdEye.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -61,9 +61,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "T10000000000000000000002"
-            BuildableName = "HackBrown.app"
-            BlueprintName = "HackBrown"
-            ReferencedContainer = "container:HackBrown.xcodeproj">
+            BuildableName = "ThirdEye.app"
+            BlueprintName = "ThirdEye"
+            ReferencedContainer = "container:ThirdEye.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

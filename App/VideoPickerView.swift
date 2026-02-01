@@ -74,7 +74,7 @@ struct VideoPickerView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             
-            Text("Make sure they're included in the HackBrown target's Copy Bundle Resources")
+            Text("Make sure they're included in the ThirdEye target's Copy Bundle Resources")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

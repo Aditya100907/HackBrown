@@ -26,7 +26,7 @@
 		B1000000000000000000000F /* ObjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* ObjectDetector.swift */; };
 		B10000000000000000000010 /* RoadHeuristics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* RoadHeuristics.swift */; };
 		B10000000000000000000011 /* RoadPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* RoadPipeline.swift */; };
-		B10000000000000000000012 /* HackBrownApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* HackBrownApp.swift */; };
+		B10000000000000000000012 /* ThirdEyeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* ThirdEyeApp.swift */; };
 		B10000000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* Assets.xcassets */; };
 		B10000000000000000000020 /* DualCameraFrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000020 /* DualCameraFrameSource.swift */; };
 		B10000000000000000000021 /* VideoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000021 /* VideoManager.swift */; };
@@ -53,13 +53,13 @@
 		F1000000000000000000000F /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetector.swift; sourceTree = "<group>"; };
 		F10000000000000000000010 /* RoadHeuristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadHeuristics.swift; sourceTree = "<group>"; };
 		F10000000000000000000011 /* RoadPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadPipeline.swift; sourceTree = "<group>"; };
-		F10000000000000000000012 /* HackBrownApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HackBrownApp.swift; sourceTree = "<group>"; };
+		F10000000000000000000012 /* ThirdEyeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirdEyeApp.swift; sourceTree = "<group>"; };
 		F10000000000000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F10000000000000000000020 /* DualCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualCameraFrameSource.swift; sourceTree = "<group>"; };
 		F10000000000000000000021 /* VideoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoManager.swift; sourceTree = "<group>"; };
 		F10000000000000000000022 /* VideoPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPickerView.swift; sourceTree = "<group>"; };
-		T10000000000000000000001 /* HackBrown.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HackBrown.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		T10000000000000000000001 /* ThirdEye.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ThirdEye.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,7 +84,7 @@
 		G10000000000000000000002 /* . */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000012 /* HackBrownApp.swift */,
+				F10000000000000000000012 /* ThirdEyeApp.swift */,
 				GG100000000000000000001 /* Alerts */,
 				GG100000000000000000002 /* App */,
 				GG100000000000000000003 /* Camera */,
@@ -100,7 +100,7 @@
 		G10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				T10000000000000000000001 /* HackBrown.app */,
+				T10000000000000000000001 /* ThirdEye.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -188,9 +188,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		T10000000000000000000002 /* HackBrown */ = {
+		T10000000000000000000002 /* ThirdEye */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C10000000000000000000001 /* Build configuration list for PBXNativeTarget "HackBrown" */;
+			buildConfigurationList = C10000000000000000000001 /* Build configuration list for PBXNativeTarget "ThirdEye" */;
 			buildPhases = (
 				P10000000000000000000001 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
@@ -200,9 +200,9 @@
 			);
 			dependencies = (
 			);
-			name = HackBrown;
-			productName = HackBrown;
-			productReference = T10000000000000000000001 /* HackBrown.app */;
+			name = ThirdEye;
+			productName = ThirdEye;
+			productReference = T10000000000000000000001 /* ThirdEye.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -215,7 +215,7 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = C10000000000000000000002 /* Build configuration list for PBXProject "HackBrown" */;
+			buildConfigurationList = C10000000000000000000002 /* Build configuration list for PBXProject "ThirdEye" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -228,7 +228,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				T10000000000000000000002 /* HackBrown */,
+				T10000000000000000000002 /* ThirdEye */,
 			);
 		};
 /* End PBXProject section */
@@ -268,7 +268,7 @@
 				B1000000000000000000000F /* ObjectDetector.swift in Sources */,
 				B10000000000000000000010 /* RoadHeuristics.swift in Sources */,
 				B10000000000000000000011 /* RoadPipeline.swift in Sources */,
-				B10000000000000000000012 /* HackBrownApp.swift in Sources */,
+				B10000000000000000000012 /* ThirdEyeApp.swift in Sources */,
 				B10000000000000000000020 /* DualCameraFrameSource.swift in Sources */,
 				B10000000000000000000021 /* VideoManager.swift in Sources */,
 				B10000000000000000000022 /* VideoPickerView.swift in Sources */,
@@ -345,7 +345,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SafeRide;
+				INFOPLIST_KEY_CFBundleDisplayName = ThirdEye;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -355,7 +355,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.HackBrown;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.ThirdEye;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -375,7 +375,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SafeRide;
+				INFOPLIST_KEY_CFBundleDisplayName = ThirdEye;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -385,7 +385,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.HackBrown;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hackbrown.ThirdEye;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -396,7 +396,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C10000000000000000000001 /* Build configuration list for PBXNativeTarget "HackBrown" */ = {
+		C10000000000000000000001 /* Build configuration list for PBXNativeTarget "ThirdEye" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C10000000000000000000005 /* Debug */,
@@ -405,7 +405,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C10000000000000000000002 /* Build configuration list for PBXProject "HackBrown" */ = {
+		C10000000000000000000002 /* Build configuration list for PBXProject "ThirdEye" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C10000000000000000000003 /* Debug */,
