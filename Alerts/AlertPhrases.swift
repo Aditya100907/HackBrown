@@ -35,33 +35,33 @@ enum AlertType: String, CaseIterable {
     // System
     case systemReady = "system_ready"
     
-    /// The phrase to speak for this alert
+    /// The phrase to speak for this alert (suggestion-style, non-instructional)
     var phrase: String {
         switch self {
         case .carAhead:
-            return "Car ahead."
+            return "Heads up: car detected in path. You may want to slow down."
         case .truckAhead:
-            return "Truck ahead."
+            return "Heads up: truck in path. Consider slowing down."
         case .pedestrianAhead:
-            return "Pedestrian ahead. Slow down."
+            return "Heads up: pedestrian in path. You may want to slow down."
         case .cyclistAhead:
-            return "Cyclist ahead. Give space."
+            return "Heads up: cyclist in path. Consider giving space."
         case .vehicleClosing:
-            return "Vehicle closing. Brake."
+            return "Heads up: vehicle closing. You may want to slow down."
         case .obstacleAhead:
-            return "Obstacle ahead."
+            return "Heads up: obstacle in path. Consider slowing down."
         case .closingFast:
-            return "Closing fast. Brake now."
+            return "Heads up: closing fast. You may want to slow down."
         case .eyesUp:
-            return "Eyes up."
+            return "Heads up: you may want to look at the road."
         case .watchRoad:
-            return "Watch the road."
+            return "Heads up: consider watching the road."
         case .keepEyesOnRoad:
-            return "Keep your eyes on the road."
+            return "Heads up: you may want to keep your eyes on the road."
         case .drowsy:
-            return "You seem drowsy."
+            return "Heads up: you may want to take a break if you feel tired."
         case .takeBreak:
-            return "Consider taking a break."
+            return "Consider taking a break when it's safe."
         case .systemReady:
             return "System ready."
         }
@@ -300,6 +300,6 @@ class WarningSoundPlayer {
         }
     }
 }
-
 // Need to import UIKit for haptic feedback
 import UIKit
+

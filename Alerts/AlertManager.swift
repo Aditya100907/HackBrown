@@ -92,16 +92,16 @@ final class AlertManager: ObservableObject {
             switch event.type {
             case .closingFast:
                 customPhrase = event.severity >= .critical ? 
-                    "\(objName) closing fast. Brake now." :
-                    "\(objName) getting closer."
+                    "Heads up: \(objName) closing fast. You may want to slow down." :
+                    "Heads up: \(objName) getting closer. Consider slowing down."
             case .vehicleAhead:
-                customPhrase = "\(objName) ahead."
+                customPhrase = "Heads up: \(objName) in path. You may want to slow down."
             case .pedestrianAhead:
                 customPhrase = obj.label == .bicycle ? 
-                    "Cyclist ahead. Give space." :
-                    "Pedestrian ahead. Slow down."
+                    "Heads up: cyclist in path. Consider giving space." :
+                    "Heads up: pedestrian in path. You may want to slow down."
             case .futurePath:
-                customPhrase = "\(objName) entering your path."
+                customPhrase = "Heads up: \(objName) entering your path. Consider slowing down."
             }
         } else {
             customPhrase = nil
@@ -210,13 +210,13 @@ final class AlertManager: ObservableObject {
         
         print("[AlertManager] Playing: \(request.type.rawValue) - \"\(request.phrase)\"")
         
-        // Play warning sound FIRST for road hazard alerts
+        // Play a beep before every alert (attention-getter, then suggestion)
         if request.type.isRoadHazard {
             WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
-            
-            // Brief pause after warning sound before speech
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
+        } else {
+            WarningSoundPlayer.shared.playWarningSound(critical: false)  // Gentle beep for non-road alerts
         }
+        try? await Task.sleep(nanoseconds: 200_000_000)  // Brief pause after beep before speech
         
         // Speak the alert (use custom phrase if provided; pass priority for urgency-based voice)
         await ttsManager.speak(request.type, customPhrase: request.phrase, effectivePriority: request.priority)

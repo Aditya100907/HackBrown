@@ -7,7 +7,7 @@
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleDisplayName</key>
-    <string>SafeRide</string>
+    <string>ThirdEye</string>
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundleShortVersionString</key>
@@ -15,9 +15,9 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>NSCameraUsageDescription</key>
-    <string>SafeRide needs camera access for road hazard detection and driver monitoring.</string>
+    <string>ThirdEye needs camera access for road hazard detection and driver monitoring.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>SafeRide may use the microphone for voice alerts.</string>
+    <string>ThirdEye may use the microphone for voice alerts.</string>
     <key>ELEVENLABS_API_KEY</key>
     <string></string>
     <key>UILaunchScreen</key>

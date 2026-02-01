@@ -36,33 +36,33 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		74599B882F2EBA7B007395F5 /* testVid1.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid1.mov; sourceTree = "<group>"; };
-		74599B8B2F2EBA7B007395F6 /* testVid2.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid2.mov; sourceTree = "<group>"; };
-		74599B8D2F2EBA7B007395F6 /* testVid5.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = testVid5.mov; sourceTree = "<group>"; };
-		74599B882F2EBA7C007395F7 /* yolov8n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolov8n.mlpackage; sourceTree = "<group>"; };
-		F10000000000000000000001 /* AlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertManager.swift; sourceTree = "<group>"; };
-		F10000000000000000000002 /* AlertPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertPhrases.swift; sourceTree = "<group>"; };
-		F10000000000000000000003 /* ElevenLabsTTS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsTTS.swift; sourceTree = "<group>"; };
-		F10000000000000000000004 /* TTSFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSFallback.swift; sourceTree = "<group>"; };
-		F10000000000000000000005 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F10000000000000000000006 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
-		F10000000000000000000007 /* SourceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMode.swift; sourceTree = "<group>"; };
-		F10000000000000000000008 /* FrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameSource.swift; sourceTree = "<group>"; };
-		F10000000000000000000009 /* LiveCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraFrameSource.swift; sourceTree = "<group>"; };
-		F1000000000000000000000A /* VideoFileFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFileFrameSource.swift; sourceTree = "<group>"; };
-		F1000000000000000000000B /* DriverPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverPipeline.swift; sourceTree = "<group>"; };
-		F1000000000000000000000C /* PresageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresageIntegration.swift; sourceTree = "<group>"; };
-		F1000000000000000000000D /* VisionAttention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionAttention.swift; sourceTree = "<group>"; };
-		F1000000000000000000000E /* OverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000F /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetector.swift; sourceTree = "<group>"; };
-		F10000000000000000000010 /* RoadHeuristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadHeuristics.swift; sourceTree = "<group>"; };
-		F10000000000000000000011 /* RoadPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadPipeline.swift; sourceTree = "<group>"; };
-		F10000000000000000000012 /* ThirdEyeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirdEyeApp.swift; sourceTree = "<group>"; };
-		F10000000000000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F10000000000000000000020 /* DualCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualCameraFrameSource.swift; sourceTree = "<group>"; };
-		F10000000000000000000021 /* VideoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoManager.swift; sourceTree = "<group>"; };
-		F10000000000000000000022 /* VideoPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPickerView.swift; sourceTree = "<group>"; };
+		74599B882F2EBA7B007395F5 /* testVid1.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = "Resources/testVid1.mov"; sourceTree = SOURCE_ROOT; };
+		74599B8B2F2EBA7B007395F6 /* testVid2.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = "Resources/testVid2.mov"; sourceTree = SOURCE_ROOT; };
+		74599B8D2F2EBA7B007395F6 /* testVid5.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = "Resources/testVid5.mov"; sourceTree = SOURCE_ROOT; };
+		74599B882F2EBA7C007395F7 /* yolov8n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = "Resources/yolov8n.mlpackage"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000001 /* AlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alerts/AlertManager.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000002 /* AlertPhrases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alerts/AlertPhrases.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000003 /* ElevenLabsTTS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alerts/ElevenLabsTTS.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000004 /* TTSFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alerts/TTSFallback.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000005 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/ContentView.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000006 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/ContentViewModel.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000007 /* SourceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/Settings/SourceMode.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000008 /* FrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Camera/FrameSource.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000009 /* LiveCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Camera/LiveCameraFrameSource.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000A /* VideoFileFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Camera/VideoFileFrameSource.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000B /* DriverPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Driver/DriverPipeline.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000C /* PresageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Driver/PresageIntegration.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000D /* VisionAttention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Driver/VisionAttention.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000E /* OverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HUD/OverlayView.swift"; sourceTree = SOURCE_ROOT; };
+		F1000000000000000000000F /* ObjectDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Road/ObjectDetector.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000010 /* RoadHeuristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Road/RoadHeuristics.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000011 /* RoadPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Road/RoadPipeline.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000012 /* ThirdEyeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirdEyeApp.swift; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Resources/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000020 /* DualCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Camera/DualCameraFrameSource.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000021 /* VideoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/VideoManager.swift"; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000022 /* VideoPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/VideoPickerView.swift"; sourceTree = SOURCE_ROOT; };
 		T10000000000000000000001 /* ThirdEye.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ThirdEye.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
