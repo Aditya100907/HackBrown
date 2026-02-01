@@ -234,26 +234,39 @@ struct RoadStatusView: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
             if let output = output {
-                // Vehicle count
-                if !output.vehicles.isEmpty {
-                    HStack(spacing: 4) {
-                        Text("\(output.vehicles.count)")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                        Image(systemName: "car.fill")
-                    }
-                    .foregroundColor(.yellow)
-                }
+                // Show detection counts or scanning indicator
+                let hasDetections = !output.vehicles.isEmpty || !output.vulnerableRoadUsers.isEmpty
                 
-                // Pedestrian/cyclist count
-                if !output.vulnerableRoadUsers.isEmpty {
-                    HStack(spacing: 4) {
-                        Text("\(output.vulnerableRoadUsers.count)")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                        Image(systemName: "figure.walk")
+                if hasDetections {
+                    // Vehicle count
+                    if !output.vehicles.isEmpty {
+                        HStack(spacing: 4) {
+                            Text("\(output.vehicles.count)")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                            Image(systemName: "car.fill")
+                        }
+                        .foregroundColor(.yellow)
                     }
-                    .foregroundColor(.red)
+                    
+                    // Pedestrian/cyclist count
+                    if !output.vulnerableRoadUsers.isEmpty {
+                        HStack(spacing: 4) {
+                            Text("\(output.vulnerableRoadUsers.count)")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                            Image(systemName: "figure.walk")
+                        }
+                        .foregroundColor(.red)
+                    }
+                } else {
+                    // Model is running but no relevant objects detected
+                    HStack(spacing: 4) {
+                        Image(systemName: "eye")
+                        Text("Scanning...")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.green)
                 }
                 
                 // Hazard warning
@@ -267,9 +280,13 @@ struct RoadStatusView: View {
                     .foregroundColor(.red)
                 }
             } else {
-                Text("No detections")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                // Pipeline not running or no output yet
+                HStack(spacing: 4) {
+                    Image(systemName: "video.slash")
+                    Text("Waiting...")
+                        .font(.caption)
+                }
+                .foregroundColor(.gray)
             }
         }
         .padding(8)
