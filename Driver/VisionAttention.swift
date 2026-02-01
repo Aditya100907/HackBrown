@@ -88,11 +88,11 @@ final class VisionAttention {
     /// How long eyes must be closed to trigger drowsiness alert
     private let drowsinessThreshold: TimeInterval = 0.5
     
-    /// How long looking down to trigger distraction alert
-    private let lookingDownThreshold: TimeInterval = 0.5
+    /// How long looking down to trigger distraction alert (increased from 0.5s to 1.5s for less sensitivity)
+    private let lookingDownThreshold: TimeInterval = 1.5
     
-    /// How long looking left/right/away to trigger distraction alert
-    private let lookingAwayThreshold: TimeInterval = 1.0
+    /// How long looking left/right/away to trigger distraction alert (increased from 1.0s to 2.5s for less sensitivity)
+    private let lookingAwayThreshold: TimeInterval = 2.5
     
     /// Pitch angle threshold for "looking down" (radians)
     private let lookingDownPitchThreshold: Float = -0.3

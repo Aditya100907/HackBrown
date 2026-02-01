@@ -295,6 +295,9 @@ struct HUDOverlay: View {
     // Frame size
     let frameSize: CGSize
     
+    // Whether front camera is primary (driver pipeline active)
+    let frontIsPrimary: Bool
+    
     var body: some View {
         ZStack {
             // Bounding boxes for detections
@@ -322,16 +325,20 @@ struct HUDOverlay: View {
                 
                 // Bottom: Status panels
                 HStack(alignment: .bottom) {
-                    // Left: Driver status
-                    DriverStatusView(
-                        attentionState: driverOutput?.attentionState,
-                        presageOutput: driverOutput?.presageOutput
-                    )
+                    // Left: Driver status - ONLY show when front camera is primary
+                    if frontIsPrimary {
+                        DriverStatusView(
+                            attentionState: driverOutput?.attentionState,
+                            presageOutput: driverOutput?.presageOutput
+                        )
+                    }
                     
                     Spacer()
                     
-                    // Right: Road status
-                    RoadStatusView(output: roadOutput)
+                    // Right: Road status - ONLY show when back camera is primary
+                    if !frontIsPrimary {
+                        RoadStatusView(output: roadOutput)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 120)  // Above control panel
@@ -366,7 +373,8 @@ struct HUDOverlay: View {
             driverOutput: nil,
             currentAlert: .obstacleAhead,
             isAlertActive: true,
-            frameSize: CGSize(width: 390, height: 844)
+            frameSize: CGSize(width: 390, height: 844),
+            frontIsPrimary: false
         )
     }
 }

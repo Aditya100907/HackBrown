@@ -30,7 +30,8 @@ struct ContentView: View {
                             driverOutput: viewModel.driverOutput,
                             currentAlert: viewModel.currentAlert,
                             isAlertActive: viewModel.isAlertActive,
-                            frameSize: geometry.size
+                            frameSize: geometry.size,
+                            frontIsPrimary: viewModel.frontIsPrimary
                         )
                     }
                 }
