@@ -19,7 +19,7 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>SafeRide may use the microphone for voice alerts.</string>
     <key>ELEVENLABS_API_KEY</key>
-    <string>sk_97cce3dd48b511271cfac610726006b7e1a60a38f0f33e5a</string>
+    <string></string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

@@ -228,7 +228,7 @@ final class AlertManager: ObservableObject {
         
         // Play warning sound FIRST for road hazard alerts
         if request.type.isRoadHazard {
-            // Warning sound disabled for now
+            WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
             
             // Brief pause after warning sound before speech
             try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
