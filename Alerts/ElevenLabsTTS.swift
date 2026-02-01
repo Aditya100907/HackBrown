@@ -13,7 +13,7 @@ import AVFoundation
 
 /// ElevenLabs API configuration
 struct ElevenLabsConfig {
-    /// API key (set this before using, or load from Info.plist)
+    /// API key (loaded from .env or Info.plist at launch)
     static var apiKey: String = ""
     
     /// Voice ID — George (warm, captivating British male)
@@ -30,10 +30,29 @@ struct ElevenLabsConfig {
         !apiKey.isEmpty
     }
     
-    /// Load API key from Info.plist (key: ELEVENLABS_API_KEY)
+    /// Load API key: .env file (gitignored, copied into bundle at build) first, then Info.plist
     static func loadApiKeyFromBundle() -> String {
+        if let fromEnv = loadApiKeyFromEnvFile(), !fromEnv.isEmpty {
+            return fromEnv
+        }
         let raw = Bundle.main.object(forInfoDictionaryKey: "ELEVENLABS_API_KEY") as? String ?? ""
         return raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    /// Load ELEVENLABS_API_KEY from bundled .env file (KEY=VALUE per line)
+    private static func loadApiKeyFromEnvFile() -> String? {
+        guard let url = Bundle.main.url(forResource: "env", withExtension: nil),
+              let data = try? Data(contentsOf: url),
+              let content = String(data: data, encoding: .utf8) else { return nil }
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("ELEVENLABS_API_KEY=") else { continue }
+            let value = trimmed.dropFirst("ELEVENLABS_API_KEY=".count)
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            return value.isEmpty ? nil : value
+        }
+        return nil
     }
 }
 
@@ -66,7 +85,7 @@ enum VoiceUrgency: String, CaseIterable {
         switch self {
         case .calm: return 0.85
         case .normal: return 1.0
-        case .urgent: return 1.2
+        case .urgent: return 1.18
         }
     }
     

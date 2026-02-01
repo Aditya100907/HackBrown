@@ -18,7 +18,7 @@ struct ThirdEyeApp: App {
             print("[ThirdEyeApp] ElevenLabs API key loaded successfully")
         } else {
             print("[ThirdEyeApp] ElevenLabs API key not configured - using iOS TTS fallback")
-            print("[ThirdEyeApp] To enable ElevenLabs, add your API key to Info.plist under ELEVENLABS_API_KEY")
+            print("[ThirdEyeApp] To enable ElevenLabs, copy .env.example to .env and add ELEVENLABS_API_KEY=your_key")
         }
     }
     

@@ -200,6 +200,7 @@
 			buildPhases = (
 				P10000000000000000000001 /* Sources */,
 				P10000000000000000000002 /* Frameworks */,
+				P10000000000000000000004 /* Copy .env to bundle */,
 				P10000000000000000000003 /* Resources */,
 			);
 			buildRules = (
@@ -238,6 +239,28 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		P10000000000000000000004 /* Copy .env to bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy .env to bundle";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -f \"${SRCROOT}/.env\" ]; then\n  cp \"${SRCROOT}/.env\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/env\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		P10000000000000000000003 /* Resources */ = {
