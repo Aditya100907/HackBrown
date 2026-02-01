@@ -158,8 +158,11 @@ final class TTSManager {
     }
     
     /// Speak an alert, using ElevenLabs if available, otherwise fallback
-    func speak(_ alertType: AlertType) async {
-        let phrase = alertType.phrase
+    /// - Parameters:
+    ///   - alertType: The type of alert (for caching/priority)
+    ///   - customPhrase: Optional custom phrase to speak (overrides alertType.phrase)
+    func speak(_ alertType: AlertType, customPhrase: String? = nil) async {
+        let phrase = customPhrase ?? alertType.phrase
         
         // Try ElevenLabs first if configured and preferred
         if preferElevenLabs && elevenLabs.isReady {

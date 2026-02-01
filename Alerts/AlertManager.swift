@@ -80,15 +80,37 @@ final class AlertManager: ObservableObject {
     // MARK: - Event Handlers
     
     private func handleRoadHazardEvent(_ event: RoadHazardEvent) {
-        let alertType = alertTypeForRoadHazard(event.type)
+        // Get specific alert type based on the detected object
+        let alertType = alertTypeForRoadHazard(event)
         
         // Higher severity = higher priority override
         let priorityBoost = event.severity.rawValue * 10
         
+        // Create custom phrase with object identification
+        let customPhrase: String?
+        if let obj = event.triggeringObject {
+            let objName = obj.label.rawValue.capitalized
+            switch event.type {
+            case .closingFast:
+                customPhrase = event.severity >= .critical ? 
+                    "\(objName) closing fast. Brake now." :
+                    "\(objName) getting closer."
+            case .vehicleAhead:
+                customPhrase = "\(objName) ahead."
+            case .pedestrianAhead:
+                customPhrase = obj.label == .bicycle ? 
+                    "Cyclist ahead. Give space." :
+                    "Pedestrian ahead. Slow down."
+            }
+        } else {
+            customPhrase = nil
+        }
+        
         let request = AlertRequest(
             type: alertType,
             timestamp: event.timestamp,
-            priorityOverride: alertType.priority + priorityBoost
+            priorityOverride: alertType.priority + priorityBoost,
+            phraseOverride: customPhrase
         )
         
         enqueueAlert(request)
@@ -202,8 +224,16 @@ final class AlertManager: ObservableObject {
         
         print("[AlertManager] Playing: \(request.type.rawValue) - \"\(request.phrase)\"")
         
-        // Speak the alert
-        await ttsManager.speak(request.type)
+        // Play warning sound FIRST for road hazard alerts
+        if request.type.isRoadHazard {
+            WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
+            
+            // Brief pause after warning sound before speech
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
+        }
+        
+        // Speak the alert (use custom phrase if provided)
+        await ttsManager.speak(request.type, customPhrase: request.phrase)
         
         // Update state
         currentAlert = nil

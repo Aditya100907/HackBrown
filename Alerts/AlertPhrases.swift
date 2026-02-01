@@ -2,21 +2,26 @@
 //  AlertPhrases.swift
 //  HackBrown
 //
-//  Fixed set of short alert phrases (~5-8 total) with priority mapping.
-//  These phrases are cached as audio for instant playback.
+//  Alert types with phrases and priority mapping.
+//  Road hazard alerts include specific object identification.
 //
 
 import Foundation
+import AVFoundation
 
 // MARK: - Alert Type
 
-/// All alert types with their phrases and priorities (per PROJECT_SPEC)
+/// All alert types with their phrases and priorities
 /// Priority: road hazards > distraction > drowsiness
-/// Spec phrases: "Eyes up.", "Watch the road.", "You seem drowsy.", "Obstacle ahead.", "Closing fast."
 enum AlertType: String, CaseIterable {
-    // Road hazards (highest priority) — OBSTACLE_AHEAD, CLOSING_FAST
-    case obstacleAhead = "obstacle_ahead"
-    case closingFast = "closing_fast"
+    // Road hazards (highest priority) - with specific object identification
+    case carAhead = "car_ahead"
+    case truckAhead = "truck_ahead"
+    case pedestrianAhead = "pedestrian_ahead"
+    case cyclistAhead = "cyclist_ahead"
+    case vehicleClosing = "vehicle_closing"
+    case obstacleAhead = "obstacle_ahead"  // Generic fallback
+    case closingFast = "closing_fast"      // Generic closing alert
     
     // Distraction (medium priority) — DRIVER_DISTRACTED
     case eyesUp = "eyes_up"
@@ -30,13 +35,23 @@ enum AlertType: String, CaseIterable {
     // System
     case systemReady = "system_ready"
     
-    /// The phrase to speak for this alert (per spec: ~5-8 short phrases)
+    /// The phrase to speak for this alert
     var phrase: String {
         switch self {
+        case .carAhead:
+            return "Car ahead."
+        case .truckAhead:
+            return "Truck ahead."
+        case .pedestrianAhead:
+            return "Pedestrian ahead. Slow down."
+        case .cyclistAhead:
+            return "Cyclist ahead. Give space."
+        case .vehicleClosing:
+            return "Vehicle closing. Brake."
         case .obstacleAhead:
             return "Obstacle ahead."
         case .closingFast:
-            return "Closing fast."
+            return "Closing fast. Brake now."
         case .eyesUp:
             return "Eyes up."
         case .watchRoad:
@@ -56,10 +71,14 @@ enum AlertType: String, CaseIterable {
     var priority: Int {
         switch self {
         // Road hazards: highest priority (100-199)
-        case .obstacleAhead:
-            return 160
-        case .closingFast:
+        case .closingFast, .vehicleClosing:
+            return 180  // Most urgent - closing fast
+        case .pedestrianAhead, .cyclistAhead:
+            return 170  // Vulnerable road users
+        case .carAhead, .truckAhead:
             return 155
+        case .obstacleAhead:
+            return 150
             
         // Distraction: medium priority (50-99)
         case .eyesUp:
@@ -84,9 +103,13 @@ enum AlertType: String, CaseIterable {
     /// Default cooldown for this alert type (seconds)
     var defaultCooldown: TimeInterval {
         switch self {
-        // Road hazards: shorter cooldown (can repeat more often)
-        case .obstacleAhead, .closingFast:
-            return 3.0
+        // Road hazards: longer cooldown to avoid annoying repetition
+        case .closingFast, .vehicleClosing:
+            return 4.0
+        case .pedestrianAhead, .cyclistAhead:
+            return 5.0
+        case .carAhead, .truckAhead, .obstacleAhead:
+            return 6.0
             
         // Distraction: medium cooldown
         case .eyesUp, .watchRoad, .keepEyesOnRoad:
@@ -102,10 +125,21 @@ enum AlertType: String, CaseIterable {
         }
     }
     
-    /// Whether this is a road hazard alert
+    /// Whether this is a road hazard alert (plays warning sound first)
     var isRoadHazard: Bool {
         switch self {
-        case .obstacleAhead, .closingFast:
+        case .carAhead, .truckAhead, .pedestrianAhead, .cyclistAhead, 
+             .vehicleClosing, .obstacleAhead, .closingFast:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Whether this is a critical alert (plays louder/longer warning sound)
+    var isCritical: Bool {
+        switch self {
+        case .closingFast, .vehicleClosing, .pedestrianAhead, .cyclistAhead:
             return true
         default:
             return false
@@ -135,17 +169,49 @@ enum AlertType: String, CaseIterable {
 
 // MARK: - Alert Mapping Helpers
 
-/// Maps road hazard events to alert types (spec: OBSTACLE_AHEAD, CLOSING_FAST)
-func alertTypeForRoadHazard(_ hazardType: RoadHazardType) -> AlertType {
-    switch hazardType {
-    case .obstacleAhead:
-        return .obstacleAhead
+/// Maps road hazard events to alert types with specific object identification
+func alertTypeForRoadHazard(_ event: RoadHazardEvent) -> AlertType {
+    // Get specific object label
+    let objectLabel = event.triggeringObject?.label
+    
+    switch event.type {
     case .closingFast:
-        return .closingFast
+        // Closing fast is always urgent regardless of object type
+        if event.severity >= .critical {
+            return .closingFast
+        } else {
+            return .vehicleClosing
+        }
+        
+    case .vehicleAhead:
+        // Identify specific vehicle type
+        switch objectLabel {
+        case .car:
+            return .carAhead
+        case .truck:
+            return .truckAhead
+        case .bus:
+            return .truckAhead  // Treat bus like truck
+        case .motorcycle:
+            return .carAhead   // Treat motorcycle like car for alerts
+        default:
+            return .obstacleAhead
+        }
+        
+    case .pedestrianAhead:
+        // Pedestrian or cyclist
+        switch objectLabel {
+        case .person:
+            return .pedestrianAhead
+        case .bicycle:
+            return .cyclistAhead
+        default:
+            return .pedestrianAhead
+        }
     }
 }
 
-/// Maps driver events to alert types (spec: DRIVER_DISTRACTED, DRIVER_DROWSY)
+/// Maps driver events to alert types
 func alertTypeForDriverEvent(_ eventType: DriverEventType) -> AlertType {
     switch eventType {
     case .distraction:
@@ -169,22 +235,26 @@ struct AlertRequest: Comparable {
     /// Custom priority override (if nil, uses type's default priority)
     let priorityOverride: Int?
     
+    /// Custom phrase override (for dynamic messages)
+    let phraseOverride: String?
+    
     var priority: Int {
         priorityOverride ?? type.priority
     }
     
     var phrase: String {
-        type.phrase
+        phraseOverride ?? type.phrase
     }
     
     var cooldown: TimeInterval {
         type.defaultCooldown
     }
     
-    init(type: AlertType, timestamp: Date = Date(), priorityOverride: Int? = nil) {
+    init(type: AlertType, timestamp: Date = Date(), priorityOverride: Int? = nil, phraseOverride: String? = nil) {
         self.type = type
         self.timestamp = timestamp
         self.priorityOverride = priorityOverride
+        self.phraseOverride = phraseOverride
     }
     
     // Comparable: higher priority comes first
@@ -192,3 +262,31 @@ struct AlertRequest: Comparable {
         lhs.priority < rhs.priority
     }
 }
+
+// MARK: - Warning Sound Player
+
+/// Plays a warning sound before TTS alerts
+class WarningSoundPlayer {
+    static let shared = WarningSoundPlayer()
+    
+    private var audioPlayer: AVAudioPlayer?
+    
+    private init() {}
+    
+    /// Play a warning beep sound
+    /// - Parameter critical: If true, plays a louder/more urgent sound
+    func playWarningSound(critical: Bool = false) {
+        // Use system sound for immediate playback
+        let soundID: SystemSoundID = critical ? 1521 : 1519  // Different beep sounds
+        AudioServicesPlaySystemSound(soundID)
+        
+        // Also add haptic feedback for critical alerts
+        if critical {
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.warning)
+        }
+    }
+}
+
+// Need to import UIKit for haptic feedback
+import UIKit

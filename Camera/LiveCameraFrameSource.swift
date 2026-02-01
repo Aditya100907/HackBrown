@@ -154,20 +154,34 @@ final class LiveCameraFrameSource: NSObject, FrameSource {
         if captureSession.canAddOutput(output) {
             captureSession.addOutput(output)
             
-            // Set video orientation
+            // Set video orientation to LANDSCAPE (app is landscape-only for driving)
             if let connection = output.connection(with: .video) {
-                if #available(iOS 17.0, *) {
-                    if connection.isVideoRotationAngleSupported(90) {
-                        connection.videoRotationAngle = 90  // Portrait orientation
+                if cameraPosition == .front {
+                    // Front camera needs 180° rotation to appear right-side-up in landscape
+                    if #available(iOS 17.0, *) {
+                        if connection.isVideoRotationAngleSupported(180) {
+                            connection.videoRotationAngle = 180
+                        }
+                    } else {
+                        if connection.isVideoOrientationSupported {
+                            connection.videoOrientation = .landscapeLeft
+                        }
+                    }
+                    // Mirror front camera for natural selfie view
+                    if connection.isVideoMirroringSupported {
+                        connection.isVideoMirrored = true
                     }
                 } else {
-                    if connection.isVideoOrientationSupported {
-                        connection.videoOrientation = .portrait
+                    // Back camera - standard landscape right
+                    if #available(iOS 17.0, *) {
+                        if connection.isVideoRotationAngleSupported(0) {
+                            connection.videoRotationAngle = 0
+                        }
+                    } else {
+                        if connection.isVideoOrientationSupported {
+                            connection.videoOrientation = .landscapeRight
+                        }
                     }
-                }
-                // Mirror front camera for natural selfie view
-                if cameraPosition == .front && connection.isVideoMirroringSupported {
-                    connection.isVideoMirrored = true
                 }
             }
         } else {

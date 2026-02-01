@@ -190,14 +190,15 @@ final class DualCameraFrameSource: NSObject {
             
             multiCamSession.addConnection(connection)
             
-            // Configure connection
+            // Configure connection - LANDSCAPE orientation for front camera
+            // Front camera needs 180° rotation to appear right-side-up in landscape
             if #available(iOS 17.0, *) {
-                if connection.isVideoRotationAngleSupported(90) {
-                    connection.videoRotationAngle = 90
+                if connection.isVideoRotationAngleSupported(180) {
+                    connection.videoRotationAngle = 180  // Landscape left (flipped for front cam)
                 }
             } else {
                 if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait
+                    connection.videoOrientation = .landscapeLeft
                 }
             }
             
@@ -272,14 +273,14 @@ final class DualCameraFrameSource: NSObject {
             
             multiCamSession.addConnection(connection)
             
-            // Configure connection
+            // Configure connection - LANDSCAPE orientation (app is landscape-only)
             if #available(iOS 17.0, *) {
-                if connection.isVideoRotationAngleSupported(90) {
-                    connection.videoRotationAngle = 90
+                if connection.isVideoRotationAngleSupported(0) {
+                    connection.videoRotationAngle = 0  // Landscape right
                 }
             } else {
                 if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait
+                    connection.videoOrientation = .landscapeRight
                 }
             }
             

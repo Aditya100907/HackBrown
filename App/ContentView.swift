@@ -42,6 +42,12 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $viewModel.showingVideoPicker) {
+            VideoPickerView(
+                viewModel: viewModel,
+                videos: VideoManager.scanBundleForVideos()
+            )
+        }
         .onAppear {
             // Pre-cache TTS audio on launch
             viewModel.preCacheAudio()

@@ -2,22 +2,20 @@
 //  RoadHeuristics.swift
 //  HackBrown
 //
-//  Simple, reliable heuristics for detecting dangerous road situations.
-//  - Car ahead rapidly "growing" in frame → rapid closing / braking ahead
-//  - Pedestrian appearing in forward path region
+//  Heuristics for detecting dangerous road situations.
+//  Simplified version that actually triggers alerts.
 //
 
 import Foundation
 import CoreGraphics
 
-// MARK: - Road Hazard Events (per PROJECT_SPEC)
+// MARK: - Road Hazard Events
 
 /// Types of road hazards we can detect
-/// OBSTACLE_AHEAD: vehicle or person in forward scene
-/// CLOSING_FAST: rapid growth of leading vehicle's bounding box
 enum RoadHazardType: String {
-    case obstacleAhead = "obstacle_ahead"  // Vehicle or person detected in forward scene
-    case closingFast = "closing_fast"      // Vehicle ahead rapidly growing (braking ahead)
+    case vehicleAhead = "vehicle_ahead"       // Vehicle in forward path
+    case pedestrianAhead = "pedestrian_ahead" // Pedestrian/cyclist in path
+    case closingFast = "closing_fast"         // Object approaching rapidly
 }
 
 /// A detected road hazard event
@@ -27,8 +25,13 @@ struct RoadHazardEvent {
     let timestamp: Date
     let description: String
     
-    /// Object that triggered the hazard (if any)
+    /// Object that triggered the hazard
     let triggeringObject: DetectedObject?
+    
+    /// Specific label of the detected object (for TTS)
+    var objectLabel: String {
+        triggeringObject?.label.rawValue ?? "obstacle"
+    }
 }
 
 /// Severity levels for hazards
@@ -50,36 +53,46 @@ final class RoadHeuristics {
     
     // MARK: - Configuration
     
-    /// Forward path region (center portion of frame where pedestrians are dangerous)
-    /// Normalized coordinates: x range and y range
-    private let forwardPathXRange: ClosedRange<CGFloat> = 0.2...0.8
-    private let forwardPathYRange: ClosedRange<CGFloat> = 0.3...0.9
+    /// Forward path region (where objects ahead matter)
+    private let forwardPathXRange: ClosedRange<CGFloat> = 0.1...0.9
+    private let forwardPathYRange: ClosedRange<CGFloat> = 0.1...0.95
     
-    /// Minimum area growth rate (per second) to trigger rapid approach alert
-    /// e.g., 0.1 means object area increased by 10% of frame area per second
-    private let rapidGrowthThreshold: CGFloat = 0.05
+    /// Minimum area growth rate (per second) for rapid approach
+    private let rapidGrowthThreshold: CGFloat = 0.02
     
-    /// Minimum object area to track (ignore very small detections)
-    private let minimumTrackingArea: CGFloat = 0.01
+    /// Minimum object area to consider (very small = 0.5% of frame)
+    private let minimumTrackingArea: CGFloat = 0.003
     
-    /// Maximum time between frames to consider for growth calculation
-    private let maxTrackingInterval: TimeInterval = 0.5
+    /// Area threshold for "close" objects (5% of frame)
+    private let closeAreaThreshold: CGFloat = 0.05
+    
+    /// Large object threshold (10% of frame)
+    private let largeAreaThreshold: CGFloat = 0.10
     
     // MARK: - State
     
-    /// Tracked objects from previous frame (for growth calculation)
+    /// Tracked objects from previous frame
     private var trackedObjects: [TrackedObject] = []
     
     /// Last analysis timestamp
     private var lastAnalysisTime: Date?
     
+    /// Cooldown tracking for alerts
+    private var lastAlertTimes: [String: Date] = [:]
+    private let alertCooldown: TimeInterval = 4.0
+    
+    // MARK: - Tracked Object
+    
+    private struct TrackedObject {
+        let label: ObjectLabel
+        let center: CGPoint
+        let area: CGFloat
+        let timestamp: Date
+    }
+    
     // MARK: - Analysis
     
-    /// Analyze detections and return any hazard events
-    /// - Parameters:
-    ///   - detections: Current frame detections
-    ///   - timestamp: Frame timestamp
-    /// - Returns: Array of hazard events (may be empty)
+    /// Analyze detections and return hazard events
     func analyze(detections: [DetectedObject], timestamp: Date = Date()) -> [RoadHazardEvent] {
         var events: [RoadHazardEvent] = []
         
@@ -91,124 +104,161 @@ final class RoadHeuristics {
             timeDelta = 0
         }
         
+        // Log detections for debugging
+        if !detections.isEmpty {
+            print("[RoadHeuristics] Analyzing \(detections.count) detections")
+        }
+        
         // Check each detection
         for detection in detections {
-            // Skip small objects
-            guard detection.area >= minimumTrackingArea else { continue }
+            // Skip very small objects
+            guard detection.area >= minimumTrackingArea else { 
+                continue 
+            }
             
-            // OBSTACLE_AHEAD: vehicle or person in forward scene (per spec)
-            if detection.label.isVehicle || detection.label.isVulnerableRoadUser {
-                if let event = checkObstacleAhead(detection, timestamp: timestamp) {
+            // Check if in forward path
+            guard isInForwardPath(detection) else { 
+                continue 
+            }
+            
+            // Check for pedestrian/cyclist (always important)
+            if detection.label.isVulnerableRoadUser {
+                if let event = checkPedestrian(detection, timestamp: timestamp) {
                     events.append(event)
                 }
             }
-            
-            // CLOSING_FAST: rapid growth of leading vehicle (per spec)
-            if detection.label.isVehicle && timeDelta > 0 && timeDelta < maxTrackingInterval {
-                if let event = checkClosingFast(detection, timeDelta: timeDelta, timestamp: timestamp) {
+            // Check for vehicle
+            else if detection.label.isVehicle {
+                if let event = checkVehicle(detection, timeDelta: timeDelta, timestamp: timestamp) {
                     events.append(event)
                 }
             }
         }
         
-        // Update tracking state
-        updateTrackedObjects(detections: detections, timestamp: timestamp)
+        // Update tracked objects for next frame
+        trackedObjects = detections.map { 
+            TrackedObject(label: $0.label, center: $0.center, area: $0.area, timestamp: timestamp)
+        }
         lastAnalysisTime = timestamp
+        
+        if !events.isEmpty {
+            print("[RoadHeuristics] Generated \(events.count) hazard events")
+        }
         
         return events
     }
     
-    /// Reset tracking state (e.g., when switching sources)
+    /// Reset tracking state
     func reset() {
         trackedObjects.removeAll()
         lastAnalysisTime = nil
+        lastAlertTimes.removeAll()
     }
     
     // MARK: - Hazard Checks
     
-    /// OBSTACLE_AHEAD: vehicle or person detected in forward scene (per spec)
-    private func checkObstacleAhead(_ detection: DetectedObject, timestamp: Date) -> RoadHazardEvent? {
+    private func checkPedestrian(_ detection: DetectedObject, timestamp: Date) -> RoadHazardEvent? {
+        let alertKey = "ped_\(detection.label.rawValue)"
+        
+        // Check cooldown
+        if let lastTime = lastAlertTimes[alertKey], timestamp.timeIntervalSince(lastTime) < alertCooldown {
+            return nil
+        }
+        
+        // Any pedestrian/cyclist in path is concerning
+        let severity: HazardSeverity
+        if detection.area > largeAreaThreshold {
+            severity = .critical
+        } else if detection.area > closeAreaThreshold {
+            severity = .high
+        } else {
+            severity = .medium
+        }
+        
+        lastAlertTimes[alertKey] = timestamp
+        
+        let name = detection.label.rawValue.capitalized
+        return RoadHazardEvent(
+            type: .pedestrianAhead,
+            severity: severity,
+            timestamp: timestamp,
+            description: "\(name) ahead",
+            triggeringObject: detection
+        )
+    }
+    
+    private func checkVehicle(_ detection: DetectedObject, timeDelta: TimeInterval, timestamp: Date) -> RoadHazardEvent? {
+        let alertKey = "veh_\(detection.label.rawValue)"
+        
+        // Check cooldown
+        if let lastTime = lastAlertTimes[alertKey], timestamp.timeIntervalSince(lastTime) < alertCooldown {
+            return nil
+        }
+        
+        // Check if this vehicle is approaching (area growing)
+        var isApproaching = false
+        var growthRate: CGFloat = 0
+        
+        if timeDelta > 0, let tracked = findMatchingTracked(for: detection) {
+            let areaDelta = detection.area - tracked.area
+            growthRate = areaDelta / CGFloat(timeDelta)
+            isApproaching = growthRate > 0.005  // Any positive growth
+        }
+        
+        // Determine if we should alert
+        // Alert if: large object OR approaching object
+        let isLarge = detection.area > closeAreaThreshold
+        let isClosingFast = growthRate > rapidGrowthThreshold
+        
+        // Only alert for significant objects
+        guard isLarge || (isApproaching && detection.area > minimumTrackingArea * 3) else {
+            return nil
+        }
+        
+        // Determine severity and type
+        let severity: HazardSeverity
+        let hazardType: RoadHazardType
+        
+        if isClosingFast && detection.area > closeAreaThreshold {
+            severity = .critical
+            hazardType = .closingFast
+        } else if isClosingFast {
+            severity = .high
+            hazardType = .closingFast
+        } else if detection.area > largeAreaThreshold {
+            severity = .high
+            hazardType = .vehicleAhead
+        } else if isLarge {
+            severity = .medium
+            hazardType = .vehicleAhead
+        } else {
+            return nil  // Not significant enough
+        }
+        
+        lastAlertTimes[alertKey] = timestamp
+        
+        let name = detection.label.rawValue.capitalized
+        let desc = hazardType == .closingFast ? "\(name) closing fast" : "\(name) ahead"
+        
+        return RoadHazardEvent(
+            type: hazardType,
+            severity: severity,
+            timestamp: timestamp,
+            description: desc,
+            triggeringObject: detection
+        )
+    }
+    
+    // MARK: - Helpers
+    
+    private func isInForwardPath(_ detection: DetectedObject) -> Bool {
         let center = detection.center
-        
-        // Check if center is in forward path region
-        guard forwardPathXRange.contains(center.x),
-              forwardPathYRange.contains(center.y) else {
-            return nil
-        }
-        
-        // Determine severity based on position and size
-        let severity: HazardSeverity
-        let verticalPosition = center.y
-        
-        if verticalPosition > 0.7 && detection.area > 0.05 {
-            // Large object in lower portion of frame = very close
-            severity = .critical
-        } else if verticalPosition > 0.5 {
-            severity = .high
-        } else {
-            severity = .medium
-        }
-        
-        let description = "\(detection.label.rawValue.capitalized) in forward scene"
-        
-        return RoadHazardEvent(
-            type: .obstacleAhead,
-            severity: severity,
-            timestamp: timestamp,
-            description: description,
-            triggeringObject: detection
-        )
+        return forwardPathXRange.contains(center.x) && forwardPathYRange.contains(center.y)
     }
     
-    /// CLOSING_FAST: rapid growth of leading vehicle's bounding box (per spec)
-    private func checkClosingFast(_ detection: DetectedObject, timeDelta: TimeInterval, timestamp: Date) -> RoadHazardEvent? {
-        // Find matching tracked object from previous frame
-        guard let tracked = findMatchingTrackedObject(for: detection) else {
-            return nil
-        }
-        
-        // Calculate growth rate (area change per second)
-        let areaDelta = detection.area - tracked.area
-        let growthRate = areaDelta / CGFloat(timeDelta)
-        
-        // Only alert on positive growth (approaching, not receding)
-        guard growthRate > rapidGrowthThreshold else {
-            return nil
-        }
-        
-        // Determine severity based on growth rate and current size
-        let severity: HazardSeverity
-        if growthRate > rapidGrowthThreshold * 3 || detection.area > 0.3 {
-            severity = .critical
-        } else if growthRate > rapidGrowthThreshold * 2 {
-            severity = .high
-        } else {
-            severity = .medium
-        }
-        
-        return RoadHazardEvent(
-            type: .closingFast,
-            severity: severity,
-            timestamp: timestamp,
-            description: "Vehicle ahead closing fast",
-            triggeringObject: detection
-        )
-    }
-    
-    // MARK: - Object Tracking
-    
-    /// Simple tracked object for frame-to-frame comparison
-    private struct TrackedObject {
-        let label: ObjectLabel
-        let center: CGPoint
-        let area: CGFloat
-        let timestamp: Date
-    }
-    
-    /// Find a matching tracked object from the previous frame
-    private func findMatchingTrackedObject(for detection: DetectedObject) -> TrackedObject? {
-        // Simple matching: same label and close center position
-        let maxCenterDistance: CGFloat = 0.2  // Max center movement between frames
+    private func findMatchingTracked(for detection: DetectedObject) -> TrackedObject? {
+        // Find a tracked object with same label and close position
+        let maxDistance: CGFloat = 0.3
         
         return trackedObjects.first { tracked in
             guard tracked.label == detection.label else { return false }
@@ -217,19 +267,7 @@ final class RoadHeuristics {
             let dy = abs(tracked.center.y - detection.center.y)
             let distance = sqrt(dx * dx + dy * dy)
             
-            return distance < maxCenterDistance
-        }
-    }
-    
-    /// Update tracked objects for next frame
-    private func updateTrackedObjects(detections: [DetectedObject], timestamp: Date) {
-        trackedObjects = detections.map { detection in
-            TrackedObject(
-                label: detection.label,
-                center: detection.center,
-                area: detection.area,
-                timestamp: timestamp
-            )
+            return distance < maxDistance
         }
     }
 }

@@ -76,10 +76,10 @@ enum ObjectLabel: String, CaseIterable {
     case teddyBear = "teddy bear", hairDrier = "hair drier", toothbrush
     case unknown = "unknown"
     
-    /// Whether this is a vehicle type
+    /// Whether this is a ROAD vehicle (not planes, trains, boats!)
     var isVehicle: Bool {
         switch self {
-        case .car, .truck, .bus, .motorcycle, .airplane, .train, .boat:
+        case .car, .truck, .bus, .motorcycle:
             return true
         default:
             return false
@@ -94,6 +94,11 @@ enum ObjectLabel: String, CaseIterable {
         default:
             return false
         }
+    }
+    
+    /// Whether this is relevant for road safety (the ONLY things we care about)
+    var isRoadRelevant: Bool {
+        return isVehicle || isVulnerableRoadUser
     }
     
     /// Initialize from YOLO/COCO class index (0-79)
@@ -116,7 +121,7 @@ enum ObjectLabel: String, CaseIterable {
 // MARK: - Object Detector
 
 /// CoreML-based object detector using YOLO-style model
-final class ObjectDetector {
+final class ObjectDetector: @unchecked Sendable {
     
     // MARK: - Properties
     
@@ -150,7 +155,7 @@ final class ObjectDetector {
     /// - Parameters:
     ///   - modelURL: URL to .mlmodelc, or nil to use bundled model
     ///   - confidenceThreshold: Minimum confidence (default 0.4)
-    init(modelURL: URL? = nil, confidenceThreshold: Float = 0.4) {
+    init(modelURL: URL? = nil, confidenceThreshold: Float = 0.25) {
         self.confidenceThreshold = confidenceThreshold
         loadModel(from: modelURL)
     }
@@ -270,7 +275,7 @@ final class ObjectDetector {
     
     /// Detect objects in a pixel buffer
     /// - Parameter pixelBuffer: Input image
-    /// - Returns: Array of detected objects
+    /// - Returns: Array of detected objects (ONLY road-relevant: cars, trucks, buses, motorcycles, people, bicycles)
     func detect(in pixelBuffer: CVPixelBuffer) -> [DetectedObject] {
         frameCount += 1
         
@@ -283,22 +288,24 @@ final class ObjectDetector {
             lastLogTime = now
         }
         
+        var detections: [DetectedObject] = []
+        
         // First try Vision framework (works with properly formatted models)
         if let visionModel = visionModel, !isYOLOv8RawFormat {
-            return detectWithVision(pixelBuffer: pixelBuffer, model: visionModel)
+            detections = detectWithVision(pixelBuffer: pixelBuffer, model: visionModel)
         }
-        
         // Fall back to raw YOLOv8 processing
-        if let mlModel = mlModel {
-            return detectWithRawYOLOv8(pixelBuffer: pixelBuffer, model: mlModel)
+        else if let mlModel = mlModel {
+            detections = detectWithRawYOLOv8(pixelBuffer: pixelBuffer, model: mlModel)
         }
-        
         // Log if no model available
-        if frameCount == 1 {
+        else if frameCount == 1 {
             print("[ObjectDetector] No model available - returning empty detections")
         }
         
-        return []
+        // STRICT FILTER: Only return road-relevant objects (cars, trucks, buses, motorcycles, people, bicycles)
+        // NO planes, NO trains, NO boats, NO animals, NO furniture, NO food, etc.
+        return detections.filter { $0.label.isRoadRelevant }
     }
     
     /// Detect using Vision framework
@@ -530,8 +537,13 @@ final class ObjectDetector {
             // Filter by confidence
             guard maxScore >= confidenceThreshold else { continue }
             
-            // Convert to ObjectLabel (show all COCO classes)
+            // Convert to ObjectLabel and filter to only relevant road safety classes
             let label = ObjectLabel(cocoIndex: maxIndex)
+            
+            // Skip irrelevant classes (only show vehicles and vulnerable road users)
+            guard label.isVehicle || label.isVulnerableRoadUser else { 
+                continue 
+            }
             
             // Convert from center format (cx, cy, w, h) to corner format (x, y, w, h)
             // Also normalize to 0-1 range (YOLOv8 outputs are in pixel coordinates for 640x640)
@@ -553,6 +565,15 @@ final class ObjectDetector {
                 confidence: maxScore,
                 boundingBox: boundingBox
             ))
+        }
+        
+        // Log raw detection counts by class for debugging
+        if !detections.isEmpty {
+            let classCounts = Dictionary(grouping: detections, by: { $0.label })
+                .mapValues { $0.count }
+                .sorted { $0.value > $1.value }
+            let summary = classCounts.map { "\($0.key.rawValue):\($0.value)" }.joined(separator: ", ")
+            print("[ObjectDetector] Raw detections by class: \(summary)")
         }
         
         // Apply non-maximum suppression

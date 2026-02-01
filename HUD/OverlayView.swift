@@ -83,10 +83,9 @@ struct BoundingBoxView: View {
         return .blue
     }
     
-    /// Label text with confidence
+    /// Label text (just object name, no confidence)
     private var labelText: String {
-        let confidence = Int(detection.confidence * 100)
-        return "\(detection.label.rawValue) \(confidence)%"
+        return detection.label.rawValue.capitalized
     }
 }
 
@@ -317,8 +316,8 @@ struct HUDOverlay: View {
     
     var body: some View {
         ZStack {
-            // Bounding boxes for detections
-            if let detections = roadOutput?.detections {
+            // Bounding boxes for detections (ONLY when back camera is active)
+            if !frontIsPrimary, let detections = roadOutput?.detections {
                 DetectionOverlayView(
                     detections: detections,
                     frameSize: frameSize

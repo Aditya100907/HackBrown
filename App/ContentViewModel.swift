@@ -70,6 +70,14 @@ final class ContentViewModel: ObservableObject {
     /// Whether dual camera mode is currently active
     @Published var isDualCameraActive: Bool = false
     
+    // MARK: - Video Picker State
+    
+    /// Whether the video picker sheet is showing
+    @Published var showingVideoPicker: Bool = false
+    
+    /// Currently selected video filename (with extension)
+    @Published var selectedVideoFileName: String?
+    
     // MARK: - Pipelines
     
     private var frameSource: FrameSource?
@@ -249,11 +257,61 @@ final class ContentViewModel: ObservableObject {
     func startDemo() {
         guard !isRunning else { return }
         
+        // Scan for available videos
+        let availableVideos = VideoManager.scanBundleForVideos()
+        
+        if availableVideos.isEmpty {
+            print("[ContentViewModel] No demo videos found in bundle")
+            return
+        }
+        
+        // If only one video, start it directly
+        if availableVideos.count == 1 {
+            let video = availableVideos[0]
+            startDemoWithVideo(video.name, ext: video.fileExtension)
+        } else {
+            // Show picker for multiple videos
+            showingVideoPicker = true
+        }
+    }
+    
+    /// Start demo mode with a specific video
+    /// - Parameters:
+    ///   - name: Video name (without extension)
+    ///   - ext: File extension (.mov, .mp4, .m4v)
+    func startDemoWithVideo(_ name: String, ext: String) {
+        guard !isRunning else { return }
+        
         appMode = .demo
         sourceMode = .videoFile
-        startSingleCamera()
+        selectedVideoFileName = "\(name).\(ext)"
         
-        print("[ContentViewModel] Started demo mode with video file")
+        // Create video source
+        guard let videoSource = VideoManager.loadVideo(named: name, ext: ext) else {
+            print("[ContentViewModel] Failed to load video: \(name).\(ext)")
+            return
+        }
+        
+        frameSource = videoSource
+        
+        isRunning = true
+        isDualCameraActive = false
+        resetFPSCounter()
+        alertManager.resetCooldowns()
+        
+        // Subscribe to frames
+        subscribeToFrames()
+        
+        // Start road pipeline with YOLO
+        roadPipeline.start(with: videoSource)
+        
+        // Start video playback
+        videoSource.start()
+        
+        // Announce system ready
+        alertManager.triggerAlert(.systemReady)
+        
+        print("[ContentViewModel] Started demo with video: \(name).\(ext)")
     }
     
     /// Start with single camera (original behavior)
@@ -383,22 +441,24 @@ final class ContentViewModel: ObservableObject {
             frameSource = liveCameraSource
             
         case .videoFile:
-            // Try bundle resources first (testVid1.mov, then test_video.mp4, then demo.mov)
-            if let source = VideoFileFrameSource(bundleResource: "testVid1", withExtension: "mov") {
-                frameSource = source
-            } else if let source = VideoFileFrameSource(bundleResource: "test_video", withExtension: "mp4") {
-                frameSource = source
-            } else if let source = VideoFileFrameSource(bundleResource: "demo", withExtension: "mov") {
+            // Use selectedVideoFileName if available (from video picker)
+            if let fileName = selectedVideoFileName {
+                let components = fileName.split(separator: ".")
+                if components.count == 2,
+                   let source = VideoManager.loadVideo(named: String(components[0]), ext: String(components[1])) {
+                    frameSource = source
+                    return
+                }
+            }
+            
+            // Fallback to first available video
+            let videos = VideoManager.scanBundleForVideos()
+            if let first = videos.first,
+               let source = VideoManager.loadVideo(named: first.name, ext: first.fileExtension) {
                 frameSource = source
             } else {
-                // Fallback: try documents directory
-                let docsURL = VideoFileHelper.documentsURL(fileName: "test_video.mp4")
-                if VideoFileHelper.fileExists(at: docsURL) {
-                    frameSource = VideoFileFrameSource(url: docsURL)
-                } else {
-                    print("[ContentViewModel] No video file found. Add testVid1.mov (or test_video.mp4 / demo.mov) to the Resources folder and ensure it's in the HackBrown target's Copy Bundle Resources.")
-                    frameSource = nil
-                }
+                print("[ContentViewModel] No video files found. Add .mov, .mp4, or .m4v files to Resources folder.")
+                frameSource = nil
             }
         }
     }
