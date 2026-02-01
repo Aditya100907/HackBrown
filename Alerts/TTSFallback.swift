@@ -48,7 +48,7 @@ final class TTSFallback: NSObject, TTSProvider, @unchecked Sendable {
     
     // MARK: - TTSProvider Methods
     
-    func speak(_ phrase: String, alertType: AlertType) async -> Bool {
+    func speak(_ phrase: String, alertType: AlertType, effectivePriority: Int? = nil) async -> Bool {
         // Stop any current speech
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
@@ -161,18 +161,18 @@ final class TTSManager {
     /// - Parameters:
     ///   - alertType: The type of alert (for caching/priority)
     ///   - customPhrase: Optional custom phrase to speak (overrides alertType.phrase)
-    func speak(_ alertType: AlertType, customPhrase: String? = nil) async {
+    func speak(_ alertType: AlertType, customPhrase: String? = nil, effectivePriority: Int? = nil) async {
         let phrase = customPhrase ?? alertType.phrase
         
         if preferElevenLabs && elevenLabs.isReady {
-            let success = await elevenLabs.speak(phrase, alertType: alertType)
+            let success = await elevenLabs.speak(phrase, alertType: alertType, effectivePriority: effectivePriority)
             if success {
                 return
             }
             print("[TTSManager] ElevenLabs failed, falling back to iOS TTS")
         }
         
-        _ = await fallback.speak(phrase, alertType: alertType)
+        _ = await fallback.speak(phrase, alertType: alertType, effectivePriority: effectivePriority)
     }
     
     /// Pre-cache all phrases with ElevenLabs

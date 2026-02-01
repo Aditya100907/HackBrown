@@ -233,7 +233,7 @@ final class AlertManager: ObservableObject {
         }
         
         // Speak the alert (use custom phrase if provided; pass priority for urgency-based voice)
-        await ttsManager.speak(request.type, customPhrase: request.phrase)
+        await ttsManager.speak(request.type, customPhrase: request.phrase, effectivePriority: request.priority)
         
         // Update state
         currentAlert = nil

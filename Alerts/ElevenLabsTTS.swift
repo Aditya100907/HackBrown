@@ -37,12 +37,52 @@ struct ElevenLabsConfig {
     }
 }
 
+// MARK: - Voice Urgency
+
+/// Urgency tier: low risk = calm/stable, high risk = urgent/variable
+enum VoiceUrgency: String, CaseIterable {
+    case calm
+    case normal
+    case urgent
+    
+    var stability: Float {
+        switch self {
+        case .calm: return 0.92
+        case .normal: return 0.50
+        case .urgent: return 0.12
+        }
+    }
+    
+    var similarityBoost: Float {
+        switch self {
+        case .calm: return 0.65
+        case .normal: return 0.78
+        case .urgent: return 0.92
+        }
+    }
+    
+    /// ElevenLabs speed (0.7–1.2). Urgent = faster delivery.
+    var speed: Float {
+        switch self {
+        case .calm: return 0.92
+        case .normal: return 1.0
+        case .urgent: return 1.18
+        }
+    }
+    
+    static func from(priority: Int) -> VoiceUrgency {
+        if priority >= 170 { return .urgent }
+        if priority >= 100 { return .normal }
+        return .calm
+    }
+}
+
 // MARK: - TTS Provider Protocol
 
 /// Protocol for TTS providers
 protocol TTSProvider {
     var isReady: Bool { get }
-    func speak(_ phrase: String, alertType: AlertType) async -> Bool
+    func speak(_ phrase: String, alertType: AlertType, effectivePriority: Int?) async -> Bool
     func preCacheAllPhrases() async
     func isCached(_ alertType: AlertType) -> Bool
 }
@@ -70,9 +110,12 @@ final class ElevenLabsTTS: TTSProvider {
         configureAudioSession()
     }
     
-    func speak(_ phrase: String, alertType: AlertType) async -> Bool {
-        // Try cache first
-        let cacheURL = cacheDirectory.appendingPathComponent("\(alertType.rawValue).mp3")
+    func speak(_ phrase: String, alertType: AlertType, effectivePriority: Int? = nil) async -> Bool {
+        let priority = effectivePriority ?? alertType.priority
+        let urgency = VoiceUrgency.from(priority: priority)
+        let cacheKey = "\(alertType.rawValue)_\(urgency.rawValue)"
+        let cacheURL = cacheDirectory.appendingPathComponent("\(cacheKey).mp3")
+        
         if FileManager.default.fileExists(atPath: cacheURL.path) {
             return await playAudio(from: cacheURL)
         }
@@ -82,16 +125,14 @@ final class ElevenLabsTTS: TTSProvider {
             return false
         }
         
-        // Generate audio
-        guard let audioData = await generateAudio(for: phrase) else {
+        guard let audioData = await generateAudio(for: phrase, urgency: urgency) else {
             return false
         }
         
-        // Cache it
         do {
             try audioData.write(to: cacheURL)
-            cachedFiles.insert(alertType.rawValue)
-            print("[ElevenLabsTTS] Cached audio for: \(alertType.rawValue)")
+            cachedFiles.insert(cacheKey)
+            print("[ElevenLabsTTS] Cached audio for: \(cacheKey)")
         } catch {
             print("[ElevenLabsTTS] Failed to cache: \(error)")
         }
@@ -116,7 +157,8 @@ final class ElevenLabsTTS: TTSProvider {
     }
     
     func isCached(_ alertType: AlertType) -> Bool {
-        cachedFiles.contains(alertType.rawValue)
+        let urgency = VoiceUrgency.from(priority: alertType.priority)
+        return cachedFiles.contains("\(alertType.rawValue)_\(urgency.rawValue)")
     }
     
     // MARK: - Private
@@ -137,12 +179,12 @@ final class ElevenLabsTTS: TTSProvider {
             return
         }
         for file in files where file.pathExtension == "mp3" {
-            cachedFiles.insert(file.deletingPathExtension().lastPathComponent)
+            cachedFiles.insert(file.deletingPathExtension().lastPathComponent)  // e.g. system_ready_calm
         }
         print("[ElevenLabsTTS] Found \(cachedFiles.count) cached audio files")
     }
     
-    private func generateAudio(for text: String) async -> Data? {
+    private func generateAudio(for text: String, urgency: VoiceUrgency = .normal) async -> Data? {
         guard let url = URL(string: "\(ElevenLabsConfig.apiEndpoint)/\(ElevenLabsConfig.voiceId)") else {
             return nil
         }
@@ -156,8 +198,9 @@ final class ElevenLabsTTS: TTSProvider {
             "text": text,
             "model_id": ElevenLabsConfig.modelId,
             "voice_settings": [
-                "stability": 0.5,
-                "similarity_boost": 0.75
+                "stability": urgency.stability,
+                "similarity_boost": urgency.similarityBoost,
+                "speed": urgency.speed
             ]
         ]
         
