@@ -92,10 +92,9 @@ struct BoundingBoxView: View {
         let rect = scaledRect
         
         ZStack(alignment: .topLeading) {
-            // Bounding box
+            // Light fill background
             Rectangle()
-                .stroke(boxColor, lineWidth: 2)
-                .frame(width: rect.width, height: rect.height)
+                .fill(boxColor.opacity(0.15))
             
             // Label background
             Text(labelText)

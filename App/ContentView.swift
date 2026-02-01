@@ -51,6 +51,8 @@ struct ContentView: View {
         .onAppear {
             // Pre-cache TTS audio on launch
             viewModel.preCacheAudio()
+            // Start pipelines automatically when app opens
+            viewModel.start()
         }
     }
 }
@@ -85,43 +87,34 @@ struct ControlPanel: View {
                         .monospacedDigit()
                 }
                 
+                
                 Spacer()
                 
-                // Two simplified buttons: Start and Demo
-                HStack(spacing: 12) {
-                    // Start/Stop button
-                    Button(action: {
-                        viewModel.toggleRunning()
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: viewModel.isRunning ? "stop.fill" : "play.fill")
-                            Text(viewModel.isRunning ? "Stop" : "Start")
+                // Demo button - toggles between camera and demo mode
+                Button(action: {
+                    viewModel.stop()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if viewModel.appMode == .demo {
+                            // Currently in demo, switch back to camera
+                            viewModel.start()
+                        } else {
+                            // Currently in camera, switch to demo
+                            viewModel.startDemo()
                         }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(viewModel.isRunning ? Color.red : Color.green)
-                        .cornerRadius(8)
                     }
-                    
-                    // Demo button (only enabled when not running)
-                    Button(action: {
-                        viewModel.startDemo()
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "film.fill")
-                            Text("Demo")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(viewModel.isRunning ? Color.gray : Color.blue)
-                        .cornerRadius(8)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: viewModel.appMode == .demo ? "camera.fill" : "film.fill")
+                        Text(viewModel.appMode == .demo ? "Camera" : "Demo")
                     }
-                    .disabled(viewModel.isRunning)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.blue)
+                    .cornerRadius(8)
                 }
+                .disabled(!viewModel.isRunning)
             }
             .padding(.horizontal)
             
