@@ -61,11 +61,11 @@ final class DualCameraFrameSource: NSObject {
     /// Secondary camera resolution (back - visual only, lower res for performance)
     private let secondaryResolution = CGSize(width: 640, height: 480)
     
-    /// Target frame rate for primary camera
-    private let primaryFPS: Int32 = 30
+    /// Target frame rate for primary camera (reduced from 30 for efficiency)
+    private let primaryFPS: Int32 = 24
     
     /// Target frame rate for secondary camera (lower for performance)
-    private let secondaryFPS: Int32 = 15
+    private let secondaryFPS: Int32 = 12
     
     // MARK: - Initialization
     
@@ -133,8 +133,16 @@ final class DualCameraFrameSource: NSObject {
     }
     
     private func configureFrontCamera() -> Bool {
+        // Try ultra-wide first for wider field of view (zoomed out), fallback to wide-angle
+        let deviceType: AVCaptureDevice.DeviceType
+        if let ultraWide = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .front) {
+            deviceType = .builtInUltraWideCamera
+        } else {
+            deviceType = .builtInWideAngleCamera
+        }
+        
         guard let frontDevice = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
+            deviceType,
             for: .video,
             position: .front
         ) else {
@@ -153,10 +161,16 @@ final class DualCameraFrameSource: NSObject {
             multiCamSession.addInputWithNoConnections(input)
             frontInput = input
             
-            // Configure frame rate
+            // Configure frame rate and zoom
             try frontDevice.lockForConfiguration()
             frontDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: primaryFPS)
             frontDevice.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: primaryFPS)
+            
+            // Zoom out front camera to minimum (wider field of view)
+            if frontDevice.activeFormat.videoMaxZoomFactor >= 1.0 {
+                frontDevice.videoZoomFactor = 1.0
+            }
+            
             frontDevice.unlockForConfiguration()
             
             // Create output

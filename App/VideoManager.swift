@@ -77,6 +77,8 @@ class VideoManager {
                         guard !name.hasPrefix(".") && !name.hasPrefix("__") else {
                             continue
                         }
+                        // Demo options: only testVid*.mov (exclude beepshort.mov and other non-demo clips)
+                        guard name.hasPrefix("testVid") else { continue }
                         // Dedupe by filename (same file might appear in root and Resources)
                         guard seen.insert(fileName).inserted else { continue }
                         

@@ -28,6 +28,8 @@ struct ContentView: View {
                         HUDOverlay(
                             roadOutput: viewModel.roadOutput,
                             driverOutput: viewModel.driverOutput,
+                            heartRateBPM: viewModel.heartRateBPM,
+                            attentionState: viewModel.attentionState,
                             currentAlert: viewModel.currentAlert,
                             isAlertActive: viewModel.isAlertActive,
                             frameSize: geometry.size,
@@ -249,11 +251,25 @@ struct FramePreviewView: View {
             ZStack(alignment: .topTrailing) {
                 // Main fullscreen camera view
                 if let image = viewModel.currentFrameImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
+                    // SmartSpectra outputs portrait frames - need rotation for landscape display
+                    // Dual camera outputs landscape frames - no rotation needed
+                    if viewModel.isSmartSpectraActive {
+                        // SmartSpectra camera (driver mode) - rotate 270° like original code
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .rotationEffect(.degrees(270))
+                            .scaleEffect(0.5)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        // Dual camera / road mode - already landscape, no rotation
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    }
                 } else {
                     // Placeholder when no frame
                     VStack(spacing: 16) {

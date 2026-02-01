@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SmartSpectraSwiftSDK
 
 @main
 struct ThirdEyeApp: App {
@@ -20,6 +21,13 @@ struct ThirdEyeApp: App {
             print("[ThirdEyeApp] ElevenLabs API key not configured - using iOS TTS fallback")
             print("[ThirdEyeApp] To enable ElevenLabs, copy .env.example to .env and add ELEVENLABS_API_KEY=your_key")
         }
+        
+        // Initialize SmartSpectra SDK
+        let sdk = SmartSpectraSwiftSDK.shared
+        sdk.setApiKey(Secrets.presageApiKey)
+        sdk.setSmartSpectraMode(.continuous)
+        sdk.setCameraPosition(.front)
+        print("[ThirdEyeApp] SmartSpectra SDK initialized")
     }
     
     var body: some Scene {

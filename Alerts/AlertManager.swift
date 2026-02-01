@@ -210,15 +210,13 @@ final class AlertManager: ObservableObject {
         
         print("[AlertManager] Playing: \(request.type.rawValue) - \"\(request.phrase)\"")
         
-        // Play a beep before every alert (attention-getter, then suggestion)
+        // Play beepshort.mov immediately (low latency) — user hears it while ElevenLabs/TTS loads
         if request.type.isRoadHazard {
             WarningSoundPlayer.shared.playWarningSound(critical: request.type.isCritical)
         } else {
-            WarningSoundPlayer.shared.playWarningSound(critical: false)  // Gentle beep for non-road alerts
+            WarningSoundPlayer.shared.playWarningSound(critical: false)
         }
-        try? await Task.sleep(nanoseconds: 200_000_000)  // Brief pause after beep before speech
-        
-        // Speak the alert (use custom phrase if provided; pass priority for urgency-based voice)
+        // Start TTS right away (no wait) — beep and TTS request run in parallel for fast response
         await ttsManager.speak(request.type, customPhrase: request.phrase, effectivePriority: request.priority)
         
         // Update state

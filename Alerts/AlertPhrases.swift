@@ -8,6 +8,7 @@
 
 import Foundation
 import AVFoundation
+import AudioToolbox
 
 // MARK: - Alert Type
 
@@ -31,6 +32,7 @@ enum AlertType: String, CaseIterable {
     // Drowsiness (lower priority) — DRIVER_DROWSY
     case drowsy = "drowsy"
     case takeBreak = "take_break"
+    case drowsyBlinks = "drowsy_blinks"  // 3 consecutive long blinks detected
     
     // System
     case systemReady = "system_ready"
@@ -61,7 +63,9 @@ enum AlertType: String, CaseIterable {
         case .drowsy:
             return "Heads up: you may want to take a break if you feel tired."
         case .takeBreak:
-            return "Consider taking a break when it's safe."
+            return "Consider taking a break."
+        case .drowsyBlinks:
+            return "You appear drowsy. Multiple slow blinks detected. Consider taking a break."
         case .systemReady:
             return "System ready."
         }
@@ -91,6 +95,8 @@ enum AlertType: String, CaseIterable {
         // Drowsiness: important but lower priority (30-49)
         case .drowsy:
             return 45
+        case .drowsyBlinks:
+            return 48  // Slightly higher priority than generic drowsy
         case .takeBreak:
             return 40
             
@@ -116,8 +122,8 @@ enum AlertType: String, CaseIterable {
             return 5.0
             
         // Drowsiness: longer cooldown (don't nag too much)
-        case .drowsy, .takeBreak:
-            return 10.0
+        case .drowsy, .takeBreak, .drowsyBlinks:
+            return 15.0  // Longer cooldown for drowsiness alerts
             
         // System: no repeat needed
         case .systemReady:
@@ -159,7 +165,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a drowsiness alert
     var isDrowsiness: Bool {
         switch self {
-        case .drowsy, .takeBreak:
+        case .drowsy, .takeBreak, .drowsyBlinks:
             return true
         default:
             return false
@@ -231,6 +237,8 @@ func alertTypeForDriverEvent(_ eventType: DriverEventType) -> AlertType {
         return .keepEyesOnRoad
     case .drowsiness:
         return .drowsy
+    case .repeatedDrowsyBlinks:
+        return .drowsyBlinks
     case .lowAttention:
         return .keepEyesOnRoad
     case .highFatigue:
@@ -278,22 +286,32 @@ struct AlertRequest: Comparable {
 
 // MARK: - Warning Sound Player
 
-/// Plays a warning sound before TTS alerts
+/// Plays a warning sound (beepshort.mov) before TTS alerts for low-latency feedback while ElevenLabs loads.
 class WarningSoundPlayer {
     static let shared = WarningSoundPlayer()
     
-    private var audioPlayer: AVAudioPlayer?
+    private var beepPlayer: AVPlayer?
     
     private init() {}
     
-    /// Play a warning beep sound
-    /// - Parameter critical: If true, plays a louder/more urgent sound
+    /// Play beepshort.mov immediately (non-blocking). Call this right before starting TTS so the user hears the beep while waiting for ElevenLabs.
+    func playBeepShort() {
+        guard let url = Bundle.main.url(forResource: "beepshort", withExtension: "mov", subdirectory: nil)
+            ?? Bundle.main.url(forResource: "beepshort", withExtension: "mov", subdirectory: "Resources") else {
+            // Fallback to system sound if bundle resource missing
+            AudioServicesPlaySystemSound(1519)
+            return
+        }
+        let player = AVPlayer(url: url)
+        player.volume = 0.5
+        beepPlayer = player
+        player.play()
+    }
+    
+    /// Play a warning beep before every alert (beepshort.mov for low latency, then TTS can start in parallel).
+    /// - Parameter critical: If true, adds haptic feedback
     func playWarningSound(critical: Bool = false) {
-        // Use system sound for immediate playback
-        let soundID: SystemSoundID = critical ? 1521 : 1519  // Different beep sounds
-        AudioServicesPlaySystemSound(soundID)
-        
-        // Also add haptic feedback for critical alerts
+        playBeepShort()
         if critical {
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.warning)

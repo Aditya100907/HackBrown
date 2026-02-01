@@ -219,6 +219,7 @@ struct AlertIndicatorView: View {
 struct DriverStatusView: View {
     let attentionState: AttentionState?
     let presageOutput: PresageOutput?
+    let heartRateBPM: Double?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -252,6 +253,22 @@ struct DriverStatusView: View {
                         .foregroundColor(.white)
                 }
             }
+            
+            // Heart rate (from SmartSpectra)
+            HStack(spacing: 4) {
+                Image(systemName: "heart.fill")
+                    .foregroundColor(heartRateBPM != nil ? .red : .gray)
+                if let hr = heartRateBPM {
+                    Text("Heart Rate: \(Int(hr)) BPM")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                } else {
+                    Text("Heart Rate: Measuring...")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
         }
         .padding(8)
         .background(Color.black.opacity(0.6))
@@ -269,7 +286,7 @@ struct DriverStatusView: View {
     }
     
     private var eyeStatus: String {
-        guard let state = attentionState else { return "No face" }
+        guard let state = attentionState else { return "Driver Mode" }
         if !state.faceDetected { return "No face" }
         return state.eyesOpen ? "Eyes open" : "Eyes closed"
     }
@@ -382,6 +399,12 @@ struct HUDOverlay: View {
     // Driver pipeline state
     let driverOutput: DriverPipelineOutput?
     
+    // Heart rate (from SmartSpectra via viewModel - takes priority)
+    let heartRateBPM: Double?
+    
+    // Attention state (from Vision analysis on SmartSpectra frames)
+    let attentionState: AttentionState?
+    
     // Alert state
     let currentAlert: AlertType?
     let isAlertActive: Bool
@@ -423,8 +446,9 @@ struct HUDOverlay: View {
                     // Left: Driver status - ONLY show when front camera is primary
                     if frontIsPrimary {
                         DriverStatusView(
-                            attentionState: driverOutput?.attentionState,
-                            presageOutput: driverOutput?.presageOutput
+                            attentionState: attentionState ?? driverOutput?.attentionState,
+                            presageOutput: driverOutput?.presageOutput,
+                            heartRateBPM: heartRateBPM ?? driverOutput?.heartRateBPM
                         )
                     }
                     
@@ -467,6 +491,8 @@ struct HUDOverlay: View {
                 timestamp: Date()
             ),
             driverOutput: nil,
+            heartRateBPM: 72,
+            attentionState: nil,
             currentAlert: .obstacleAhead,
             isAlertActive: true,
             frameSize: CGSize(width: 390, height: 844),

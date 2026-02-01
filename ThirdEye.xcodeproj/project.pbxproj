@@ -249,11 +249,13 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${SRCROOT}/.env",
 			);
 			name = "Copy .env to bundle";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/env",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
