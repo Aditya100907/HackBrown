@@ -240,29 +240,48 @@ struct FramePreviewView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            if let image = viewModel.currentFrameImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
+            ZStack(alignment: .topTrailing) {
+                // Main fullscreen camera view
+                if let image = viewModel.currentFrameImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                } else {
+                    // Placeholder when no frame
+                    VStack(spacing: 16) {
+                        Image(systemName: placeholderIcon)
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("Select a mode and tap Start")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                        
+                        Text(viewModel.appMode.description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
                     .frame(width: geometry.size.width, height: geometry.size.height)
-            } else {
-                // Placeholder when no frame
-                VStack(spacing: 16) {
-                    Image(systemName: placeholderIcon)
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    
-                    Text("Select a mode and tap Start")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    
-                    Text(viewModel.appMode.description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                
+                // BeReal-style PiP view (secondary camera in corner)
+                // Only shown when dual camera is active
+                if viewModel.isDualCameraActive {
+                    PiPCameraView(
+                        image: viewModel.secondaryFrameImage,
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                viewModel.togglePrimaryCamera()
+                            }
+                        }
+                    )
+                    .padding(.top, 60)  // Below status bar / notch
+                    .padding(.trailing, 16)
+                }
             }
         }
     }
@@ -275,6 +294,50 @@ struct FramePreviewView: View {
             return "person.fill"
         case .demo:
             return "film.fill"
+        }
+    }
+}
+
+// MARK: - PiP Camera View (BeReal-style)
+
+/// Picture-in-Picture camera view for secondary camera feed
+/// Tapping swaps primary and secondary cameras
+struct PiPCameraView: View {
+    let image: UIImage?
+    let onTap: () -> Void
+    
+    // PiP dimensions
+    private let pipWidth: CGFloat = 120
+    private let pipHeight: CGFloat = 160
+    private let cornerRadius: CGFloat = 16
+    
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: pipWidth, height: pipHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            } else {
+                // Placeholder while waiting for frames
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(white: 0.2))
+                    .frame(width: pipWidth, height: pipHeight)
+                    .overlay(
+                        ProgressView()
+                            .tint(.white)
+                    )
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.white, lineWidth: 3)
+        )
+        .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
         }
     }
 }

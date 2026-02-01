@@ -27,6 +27,7 @@
 		B10000000000000000000011 /* RoadPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* RoadPipeline.swift */; };
 		B10000000000000000000012 /* HackBrownApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* HackBrownApp.swift */; };
 		B10000000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* Assets.xcassets */; };
+		B10000000000000000000020 /* DualCameraFrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000020 /* DualCameraFrameSource.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +52,7 @@
 		F10000000000000000000012 /* HackBrownApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HackBrownApp.swift; sourceTree = "<group>"; };
 		F10000000000000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F10000000000000000000020 /* DualCameraFrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualCameraFrameSource.swift; sourceTree = "<group>"; };
 		T10000000000000000000001 /* HackBrown.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HackBrown.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -123,6 +125,7 @@
 			children = (
 				F10000000000000000000008 /* FrameSource.swift */,
 				F10000000000000000000009 /* LiveCameraFrameSource.swift */,
+				F10000000000000000000020 /* DualCameraFrameSource.swift */,
 				F1000000000000000000000A /* VideoFileFrameSource.swift */,
 			);
 			path = Camera;
@@ -256,6 +259,7 @@
 				B10000000000000000000010 /* RoadHeuristics.swift in Sources */,
 				B10000000000000000000011 /* RoadPipeline.swift in Sources */,
 				B10000000000000000000012 /* HackBrownApp.swift in Sources */,
+				B10000000000000000000020 /* DualCameraFrameSource.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

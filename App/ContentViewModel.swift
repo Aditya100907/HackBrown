@@ -53,12 +53,31 @@ final class ContentViewModel: ObservableObject {
     @Published var currentAlert: AlertType?
     @Published var isAlertActive: Bool = false
     
+    // MARK: - Dual Camera State (BeReal-style)
+    
+    /// Secondary camera frame image (PiP view)
+    @Published var secondaryFrameImage: UIImage?
+    
+    /// Whether front camera is the primary (fullscreen) view
+    /// When true: front = fullscreen, back = PiP
+    /// When false: back = fullscreen, front = PiP
+    @Published var frontIsPrimary: Bool = true
+    
+    /// Whether device supports dual camera (iPhone XS+)
+    @Published var isDualCameraSupported: Bool = false
+    
+    /// Whether dual camera mode is currently active
+    @Published var isDualCameraActive: Bool = false
+    
     // MARK: - Pipelines
     
     private var frameSource: FrameSource?
     
     /// Single live camera source — reused for Road/Driver to avoid deallocation crash when switching
     private lazy var liveCameraSource: LiveCameraFrameSource = LiveCameraFrameSource(position: .back)
+    
+    /// Dual camera source for BeReal-style UI (front + back simultaneously)
+    private var dualCameraSource: DualCameraFrameSource?
     
     private let roadPipeline = RoadPipeline()
     private let driverPipeline = DriverPipeline()
@@ -75,6 +94,8 @@ final class ContentViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        // Check dual camera support on init
+        isDualCameraSupported = DualCameraFrameSource.isSupported
         setupBindings()
     }
     
@@ -167,9 +188,55 @@ final class ContentViewModel: ObservableObject {
         }
     }
     
+    /// Toggle which camera is primary (fullscreen) vs secondary (PiP)
+    /// Called when user taps the PiP view
+    /// This switches BOTH the visual display AND which pipeline is running
+    func togglePrimaryCamera() {
+        guard isDualCameraActive, let dualSource = dualCameraSource else { return }
+        
+        frontIsPrimary.toggle()
+        
+        // Swap the images immediately for visual feedback
+        let temp = currentFrameImage
+        currentFrameImage = secondaryFrameImage
+        secondaryFrameImage = temp
+        
+        // Switch the pipeline to the new primary camera
+        // Stop current pipelines
+        driverPipeline.stop()
+        roadPipeline.stop()
+        
+        // Start the appropriate pipeline based on which camera is now primary
+        if frontIsPrimary {
+            // Front camera is primary - run driver monitoring
+            let frontAdapter = DualCameraFrontAdapter(dualSource: dualSource)
+            frameSource = frontAdapter
+            driverPipeline.start(with: frontAdapter)
+            print("[ContentViewModel] Switched to front camera - running driver pipeline")
+        } else {
+            // Back camera is primary - run road monitoring
+            let backAdapter = DualCameraBackAdapter(dualSource: dualSource)
+            frameSource = backAdapter
+            roadPipeline.start(with: backAdapter)
+            print("[ContentViewModel] Switched to back camera - running road pipeline")
+        }
+    }
+    
     func start() {
         guard !isRunning else { return }
         
+        // Check if we should use dual camera (Driver mode + supported device)
+        let useDualCamera = appMode == .driver && isDualCameraSupported
+        
+        if useDualCamera {
+            startDualCamera()
+        } else {
+            startSingleCamera()
+        }
+    }
+    
+    /// Start with single camera (original behavior)
+    private func startSingleCamera() {
         // Create frame source
         createFrameSource(for: sourceMode)
         
@@ -179,6 +246,7 @@ final class ContentViewModel: ObservableObject {
         }
         
         isRunning = true
+        isDualCameraActive = false
         resetFPSCounter()
         alertManager.resetCooldowns()
         
@@ -200,6 +268,47 @@ final class ContentViewModel: ObservableObject {
         alertManager.triggerAlert(.systemReady)
     }
     
+    /// Start with dual camera (BeReal-style)
+    private func startDualCamera() {
+        // Cancel existing subscriptions and re-setup bindings
+        cancellables.removeAll()
+        setupBindings()
+        currentFrameImage = nil
+        secondaryFrameImage = nil
+        
+        // Create dual camera source
+        dualCameraSource = DualCameraFrameSource()
+        
+        guard let dualSource = dualCameraSource else {
+            print("[ContentViewModel] Failed to create dual camera source, falling back to single camera")
+            startSingleCamera()
+            return
+        }
+        
+        isRunning = true
+        isDualCameraActive = true
+        frontIsPrimary = true  // Reset to front camera as primary in Driver mode
+        resetFPSCounter()
+        alertManager.resetCooldowns()
+        
+        // Subscribe to both camera feeds
+        subscribeToDualCameraFrames()
+        
+        // Create a wrapper frame source for the pipeline (front camera for driver monitoring)
+        // We'll create a simple adapter that forwards front frames to the pipeline
+        let frontFrameSource = DualCameraFrontAdapter(dualSource: dualSource)
+        frameSource = frontFrameSource
+        
+        // Start driver pipeline with front camera frames
+        driverPipeline.start(with: frontFrameSource)
+        
+        // Start dual camera capture
+        dualSource.start()
+        
+        // Announce system ready
+        alertManager.triggerAlert(.systemReady)
+    }
+    
     func stop() {
         guard isRunning else { return }
         
@@ -212,8 +321,14 @@ final class ContentViewModel: ObservableObject {
         frameSource?.stop()
         frameSource = nil
         
+        // Stop dual camera if active
+        dualCameraSource?.stop()
+        dualCameraSource = nil
+        
         isRunning = false
+        isDualCameraActive = false
         currentFrameImage = nil
+        secondaryFrameImage = nil
         roadOutput = nil
         driverOutput = nil
         fps = 0.0
@@ -270,6 +385,42 @@ final class ContentViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    /// Subscribe to both camera feeds from dual camera source
+    private func subscribeToDualCameraFrames() {
+        guard let dualSource = dualCameraSource else { return }
+        
+        // Subscribe to front camera frames
+        dualSource.frontFramePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] frame in
+                self?.processDualCameraFrame(frame, isFromFrontCamera: true)
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to back camera frames
+        dualSource.backFramePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] frame in
+                self?.processDualCameraFrame(frame, isFromFrontCamera: false)
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// Process frame from dual camera, routing to primary or secondary based on frontIsPrimary
+    private func processDualCameraFrame(_ frame: Frame, isFromFrontCamera: Bool) {
+        let image = UIImage(pixelBuffer: frame.pixelBuffer)
+        
+        // Route to primary or secondary based on which camera and frontIsPrimary setting
+        if isFromFrontCamera == frontIsPrimary {
+            // This camera is currently primary (fullscreen)
+            currentFrameImage = image
+            updateFPS()
+        } else {
+            // This camera is currently secondary (PiP)
+            secondaryFrameImage = image
+        }
+    }
+    
     private func processFrame(_ frame: Frame) {
         // Convert CVPixelBuffer to UIImage for preview
         currentFrameImage = UIImage(pixelBuffer: frame.pixelBuffer)
@@ -321,5 +472,63 @@ extension UIImage {
         }
         
         self.init(cgImage: cgImage)
+    }
+}
+
+// MARK: - Dual Camera Adapters
+
+/// Adapter that wraps DualCameraFrameSource and exposes only front camera frames
+/// This allows the DriverPipeline to receive frames through the standard FrameSource protocol
+final class DualCameraFrontAdapter: FrameSource {
+    
+    var framePublisher: AnyPublisher<Frame, Never> {
+        dualSource.frontFramePublisher
+    }
+    
+    var isRunning: Bool {
+        dualSource.isRunning
+    }
+    
+    private let dualSource: DualCameraFrameSource
+    
+    init(dualSource: DualCameraFrameSource) {
+        self.dualSource = dualSource
+    }
+    
+    func start() {
+        // Dual source is started/stopped by ContentViewModel
+        // This adapter just forwards frames
+    }
+    
+    func stop() {
+        // Dual source is started/stopped by ContentViewModel
+    }
+}
+
+/// Adapter that wraps DualCameraFrameSource and exposes only back camera frames
+/// This allows the RoadPipeline to receive frames through the standard FrameSource protocol
+final class DualCameraBackAdapter: FrameSource {
+    
+    var framePublisher: AnyPublisher<Frame, Never> {
+        dualSource.backFramePublisher
+    }
+    
+    var isRunning: Bool {
+        dualSource.isRunning
+    }
+    
+    private let dualSource: DualCameraFrameSource
+    
+    init(dualSource: DualCameraFrameSource) {
+        self.dualSource = dualSource
+    }
+    
+    func start() {
+        // Dual source is started/stopped by ContentViewModel
+        // This adapter just forwards frames
+    }
+    
+    func stop() {
+        // Dual source is started/stopped by ContentViewModel
     }
 }
