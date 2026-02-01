@@ -86,10 +86,13 @@ final class VisionAttention {
     private let eyeOpenThreshold: CGFloat = 0.15
     
     /// How long eyes must be closed to trigger drowsiness alert
-    private let drowsinessThreshold: TimeInterval = 2.0
+    private let drowsinessThreshold: TimeInterval = 0.5
     
-    /// How long eyes must be off road to trigger distraction alert
-    private let distractionThreshold: TimeInterval = 2.0
+    /// How long looking down to trigger distraction alert
+    private let lookingDownThreshold: TimeInterval = 0.5
+    
+    /// How long looking left/right/away to trigger distraction alert
+    private let lookingAwayThreshold: TimeInterval = 1.0
     
     /// Pitch angle threshold for "looking down" (radians)
     private let lookingDownPitchThreshold: Float = -0.3
@@ -102,8 +105,17 @@ final class VisionAttention {
     /// When eyes were last detected as closed
     private var eyesClosedSince: Date?
     
-    /// When gaze was last off road
-    private var gazeOffRoadSince: Date?
+    /// When gaze was last detected as looking down
+    private var gazeDownSince: Date?
+    
+    /// When gaze was last detected as looking left
+    private var gazeLeftSince: Date?
+    
+    /// When gaze was last detected as looking right
+    private var gazeRightSince: Date?
+    
+    /// When gaze was last detected as unknown (face not properly detected)
+    private var gazeUnknownSince: Date?
     
     /// Last detected state
     private var lastState: AttentionState?
@@ -193,32 +205,87 @@ final class VisionAttention {
             eyesClosedSince = nil
         }
         
-        // Check for eyes off road
-        if !state.gazeDirection.isOnRoad && state.faceDetected {
-            if gazeOffRoadSince == nil {
-                gazeOffRoadSince = now
-            } else if let offRoadSince = gazeOffRoadSince {
-                let duration = now.timeIntervalSince(offRoadSince)
-                if duration >= distractionThreshold {
-                    let severity: AttentionSeverity
-                    if duration > distractionThreshold * 3 {
-                        severity = .critical
-                    } else if duration > distractionThreshold * 2 {
-                        severity = .high
-                    } else {
-                        severity = .medium
-                    }
+        // Check for gaze-specific distraction with different thresholds
+        // Reset trackers for directions we're not currently looking
+        if state.gazeDirection != .down { gazeDownSince = nil }
+        if state.gazeDirection != .left { gazeLeftSince = nil }
+        if state.gazeDirection != .right { gazeRightSince = nil }
+        if state.gazeDirection != .unknown || !state.faceDetected { gazeUnknownSince = nil }
+        
+        // Check for looking down (shorter threshold - 0.5s)
+        if state.gazeDirection == .down && state.faceDetected {
+            if gazeDownSince == nil {
+                gazeDownSince = now
+            } else if let downSince = gazeDownSince {
+                let duration = now.timeIntervalSince(downSince)
+                if duration >= lookingDownThreshold {
+                    let severity: AttentionSeverity = duration > lookingDownThreshold * 2 ? .high : .medium
                     events.append(AttentionEvent(
                         type: .eyesOffRoad,
                         severity: severity,
                         timestamp: now,
-                        description: "Eyes off road for \(String(format: "%.1f", duration))s",
+                        description: "Looking down for \(String(format: "%.1f", duration))s",
                         duration: duration
                     ))
                 }
             }
-        } else {
-            gazeOffRoadSince = nil
+        }
+        
+        // Check for looking left (1.0s threshold)
+        if state.gazeDirection == .left && state.faceDetected {
+            if gazeLeftSince == nil {
+                gazeLeftSince = now
+            } else if let leftSince = gazeLeftSince {
+                let duration = now.timeIntervalSince(leftSince)
+                if duration >= lookingAwayThreshold {
+                    let severity: AttentionSeverity = duration > lookingAwayThreshold * 2 ? .high : .medium
+                    events.append(AttentionEvent(
+                        type: .eyesOffRoad,
+                        severity: severity,
+                        timestamp: now,
+                        description: "Looking left for \(String(format: "%.1f", duration))s",
+                        duration: duration
+                    ))
+                }
+            }
+        }
+        
+        // Check for looking right (1.0s threshold)
+        if state.gazeDirection == .right && state.faceDetected {
+            if gazeRightSince == nil {
+                gazeRightSince = now
+            } else if let rightSince = gazeRightSince {
+                let duration = now.timeIntervalSince(rightSince)
+                if duration >= lookingAwayThreshold {
+                    let severity: AttentionSeverity = duration > lookingAwayThreshold * 2 ? .high : .medium
+                    events.append(AttentionEvent(
+                        type: .eyesOffRoad,
+                        severity: severity,
+                        timestamp: now,
+                        description: "Looking right for \(String(format: "%.1f", duration))s",
+                        duration: duration
+                    ))
+                }
+            }
+        }
+        
+        // Check for unknown gaze direction (1.0s threshold)
+        if state.gazeDirection == .unknown && state.faceDetected {
+            if gazeUnknownSince == nil {
+                gazeUnknownSince = now
+            } else if let unknownSince = gazeUnknownSince {
+                let duration = now.timeIntervalSince(unknownSince)
+                if duration >= lookingAwayThreshold {
+                    let severity: AttentionSeverity = duration > lookingAwayThreshold * 2 ? .high : .medium
+                    events.append(AttentionEvent(
+                        type: .eyesOffRoad,
+                        severity: severity,
+                        timestamp: now,
+                        description: "Looking away for \(String(format: "%.1f", duration))s",
+                        duration: duration
+                    ))
+                }
+            }
         }
         
         // Check for no face detected (driver not visible)
@@ -238,7 +305,10 @@ final class VisionAttention {
     /// Reset tracking state
     func reset() {
         eyesClosedSince = nil
-        gazeOffRoadSince = nil
+        gazeDownSince = nil
+        gazeLeftSince = nil
+        gazeRightSince = nil
+        gazeUnknownSince = nil
         lastState = nil
     }
     

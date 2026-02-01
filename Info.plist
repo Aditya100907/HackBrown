@@ -18,6 +18,8 @@
     <string>SafeRide needs camera access for road hazard detection and driver monitoring.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>SafeRide may use the microphone for voice alerts.</string>
+    <key>ELEVENLABS_API_KEY</key>
+    <string></string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

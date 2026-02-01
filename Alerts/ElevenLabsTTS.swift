@@ -13,7 +13,7 @@ import AVFoundation
 
 /// ElevenLabs API configuration
 struct ElevenLabsConfig {
-    /// API key (set this before using)
+    /// API key (set this before using, or load from Info.plist)
     static var apiKey: String = ""
     
     /// Voice ID to use (default is a clear, alert-style voice)
@@ -28,6 +28,12 @@ struct ElevenLabsConfig {
     /// Whether API key is configured
     static var isConfigured: Bool {
         !apiKey.isEmpty
+    }
+    
+    /// Load API key from Info.plist (key: ELEVENLABS_API_KEY)
+    /// Call this at app launch to configure ElevenLabs
+    static func loadApiKeyFromBundle() -> String {
+        Bundle.main.object(forInfoDictionaryKey: "ELEVENLABS_API_KEY") as? String ?? ""
     }
 }
 

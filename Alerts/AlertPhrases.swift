@@ -21,6 +21,7 @@ enum AlertType: String, CaseIterable {
     // Distraction (medium priority) — DRIVER_DISTRACTED
     case eyesUp = "eyes_up"
     case watchRoad = "watch_road"
+    case keepEyesOnRoad = "keep_eyes_on_road"
     
     // Drowsiness (lower priority) — DRIVER_DROWSY
     case drowsy = "drowsy"
@@ -40,6 +41,8 @@ enum AlertType: String, CaseIterable {
             return "Eyes up."
         case .watchRoad:
             return "Watch the road."
+        case .keepEyesOnRoad:
+            return "Keep your eyes on the road."
         case .drowsy:
             return "You seem drowsy."
         case .takeBreak:
@@ -61,6 +64,8 @@ enum AlertType: String, CaseIterable {
         // Distraction: medium priority (50-99)
         case .eyesUp:
             return 70
+        case .keepEyesOnRoad:
+            return 68
         case .watchRoad:
             return 65
             
@@ -84,7 +89,7 @@ enum AlertType: String, CaseIterable {
             return 3.0
             
         // Distraction: medium cooldown
-        case .eyesUp, .watchRoad:
+        case .eyesUp, .watchRoad, .keepEyesOnRoad:
             return 5.0
             
         // Drowsiness: longer cooldown (don't nag too much)
@@ -110,7 +115,7 @@ enum AlertType: String, CaseIterable {
     /// Whether this is a distraction alert
     var isDistraction: Bool {
         switch self {
-        case .eyesUp, .watchRoad:
+        case .eyesUp, .watchRoad, .keepEyesOnRoad:
             return true
         default:
             return false
@@ -144,11 +149,11 @@ func alertTypeForRoadHazard(_ hazardType: RoadHazardType) -> AlertType {
 func alertTypeForDriverEvent(_ eventType: DriverEventType) -> AlertType {
     switch eventType {
     case .distraction:
-        return .eyesUp
+        return .keepEyesOnRoad
     case .drowsiness:
         return .drowsy
     case .lowAttention:
-        return .watchRoad
+        return .keepEyesOnRoad
     case .highFatigue:
         return .takeBreak
     }
