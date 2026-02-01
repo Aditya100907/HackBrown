@@ -42,20 +42,44 @@ struct DetectedObject: Identifiable {
     }
 }
 
-/// Object classes we care about for road hazard detection
+/// COCO 80 class names (YOLO default)
+private let cocoClassNames = [
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog",
+    "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
+    "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
+    "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle",
+    "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich",
+    "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+    "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+    "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+]
+
+/// Object classes from YOLO/COCO (all 80 classes shown)
 enum ObjectLabel: String, CaseIterable {
-    case car = "car"
-    case truck = "truck"
-    case bus = "bus"
-    case motorcycle = "motorcycle"
-    case bicycle = "bicycle"
-    case person = "person"
+    case person, bicycle, car, motorcycle, airplane, bus, train, truck, boat
+    case trafficLight = "traffic light"
+    case fireHydrant = "fire hydrant"
+    case stopSign = "stop sign"
+    case parkingMeter = "parking meter"
+    case bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
+    case backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard
+    case sportsBall = "sports ball"
+    case kite, baseballBat = "baseball bat", baseballGlove = "baseball glove"
+    case skateboard, surfboard, tennisRacket = "tennis racket", bottle
+    case wineGlass = "wine glass", cup, fork, knife, spoon, bowl, banana, apple
+    case sandwich, orange, broccoli, carrot, hotDog = "hot dog", pizza, donut, cake
+    case chair, couch, pottedPlant = "potted plant", bed, diningTable = "dining table"
+    case toilet, tv, laptop, mouse, remote, keyboard, cellPhone = "cell phone"
+    case microwave, oven, toaster, sink, refrigerator, book, clock, vase, scissors
+    case teddyBear = "teddy bear", hairDrier = "hair drier", toothbrush
     case unknown = "unknown"
     
     /// Whether this is a vehicle type
     var isVehicle: Bool {
         switch self {
-        case .car, .truck, .bus, .motorcycle:
+        case .car, .truck, .bus, .motorcycle, .airplane, .train, .boat:
             return true
         default:
             return false
@@ -74,36 +98,18 @@ enum ObjectLabel: String, CaseIterable {
     
     /// Initialize from YOLO/COCO class index (0-79)
     init(cocoIndex: Int) {
-        switch cocoIndex {
-        case 0: self = .person      // COCO class 0 = person
-        case 1: self = .bicycle     // COCO class 1 = bicycle
-        case 2: self = .car         // COCO class 2 = car
-        case 3: self = .motorcycle  // COCO class 3 = motorcycle
-        case 5: self = .bus         // COCO class 5 = bus
-        case 7: self = .truck       // COCO class 7 = truck
-        default: self = .unknown
+        guard cocoIndex >= 0, cocoIndex < cocoClassNames.count else {
+            self = .unknown
+            return
         }
+        let name = cocoClassNames[cocoIndex]
+        self = Self(rawValue: name) ?? .unknown
     }
     
     /// Initialize from YOLO/COCO class name
     init(cocoClass: String) {
         let lowercased = cocoClass.lowercased()
-        switch lowercased {
-        case "car", "automobile":
-            self = .car
-        case "truck":
-            self = .truck
-        case "bus":
-            self = .bus
-        case "motorcycle", "motorbike":
-            self = .motorcycle
-        case "bicycle", "bike":
-            self = .bicycle
-        case "person", "pedestrian":
-            self = .person
-        default:
-            self = .unknown
-        }
+        self = Self(rawValue: lowercased) ?? Self(rawValue: lowercased.replacingOccurrences(of: " ", with: "")) ?? .unknown
     }
 }
 
@@ -524,9 +530,8 @@ final class ObjectDetector {
             // Filter by confidence
             guard maxScore >= confidenceThreshold else { continue }
             
-            // Convert to ObjectLabel (only keep relevant classes)
+            // Convert to ObjectLabel (show all COCO classes)
             let label = ObjectLabel(cocoIndex: maxIndex)
-            guard label != .unknown else { continue }
             
             // Convert from center format (cx, cy, w, h) to corner format (x, y, w, h)
             // Also normalize to 0-1 range (YOLOv8 outputs are in pixel coordinates for 640x640)
@@ -661,11 +666,6 @@ final class ObjectDetector {
             }
             
             let label = ObjectLabel(cocoClass: topLabel.identifier)
-            
-            // Filter to only relevant classes
-            guard label != .unknown else {
-                return nil
-            }
             
             // Convert Vision coordinates (origin bottom-left) to standard (origin top-left)
             let boundingBox = CGRect(
